@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='django-vkontakte-wall',
-    version=__import__('vkontakte_wall').__version__,
-    description='Django implementation for vkontakte API Wall',
+    name='django-vkontakte-walls',
+    version=__import__('vkontakte_walls').__version__,
+    description='Django implementation for vkontakte API Walls',
     long_description=open('README.md').read(),
     author='ramusus',
     author_email='ramusus@gmail.com',
-    url='https://github.com/ramusus/django-vkontakte-wall',
-    download_url='http://pypi.python.org/pypi/django-vkontakte-wall',
+    url='https://github.com/ramusus/django-vkontakte-walls',
+    download_url='http://pypi.python.org/pypi/django-vkontakte-walls',
     license='BSD',
     packages=find_packages(),
     include_package_data=True,
