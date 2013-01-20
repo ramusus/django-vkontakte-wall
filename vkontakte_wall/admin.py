@@ -20,7 +20,7 @@ class PostAdmin(VkontakteModelAdmin):
     inlines = [CommentInline]
 
 class CommentAdmin(VkontakteModelAdmin):
-    list_display = ('author','post','vk_link','date','likes')
+    list_display = ('author','text','post','vk_link','date','likes')
 
 admin.site.register(Post, PostAdmin)
 admin.site.register(Comment, CommentAdmin)
