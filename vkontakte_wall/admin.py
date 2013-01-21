@@ -1,20 +1,14 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
-from django.contrib.admin import SimpleListFilter
-from vkontakte_api.admin import VkontakteModelAdmin
+from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
 from models import Post, Comment
 
-class WallOwnerListFilter(SimpleListFilter):
+class WallOwnerListFilter(GenericRelationListFilter):
     title = 'Владелец записи'
     parameter_name = 'owner'
 
-    def lookups(self, request, model_admin):
-        return [('%s-%s' % (post.wall_owner_content_type.id, post.wall_owner_id), post.wall_owner.name) for post in Post.objects.order_by().distinct('wall_owner_content_type','wall_owner_id')]
-
-    def queryset(self, request, queryset):
-        if self.value() and '-' in self.value():
-            content_type, id = self.value().split('-')
-            return queryset.filter(wall_owner_content_type=content_type, wall_owner_id=id)
+    ct_field_name = 'wall_owner_content_type'
+    id_field_name = 'wall_owner_id'
 
 class CommentInline(admin.TabularInline):
     model = Comment
