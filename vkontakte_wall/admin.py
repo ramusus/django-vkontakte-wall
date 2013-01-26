@@ -4,11 +4,12 @@ from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
 from models import Post, Comment
 
 class WallOwnerListFilter(GenericRelationListFilter):
-    title = 'Владелец записи'
+    title = u'Владелец стены'
     parameter_name = 'owner'
 
     ct_field_name = 'wall_owner_content_type'
     id_field_name = 'wall_owner_id'
+    field_name = 'wall_owner'
 
 class CommentInline(admin.TabularInline):
     model = Comment
@@ -27,6 +28,8 @@ class PostAdmin(VkontakteModelAdmin):
 
 class CommentAdmin(VkontakteModelAdmin):
     list_display = ('author','text','post','vk_link','date','likes')
+    search_fields = ('text',)
+    list_filter = (WallOwnerListFilter,)
 
 admin.site.register(Post, PostAdmin)
 admin.site.register(Comment, CommentAdmin)

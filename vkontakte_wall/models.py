@@ -396,6 +396,11 @@ class Comment(VkontakteWallModel):
 
     post = models.ForeignKey(Post, verbose_name=u'Пост', related_name='wall_comments')
 
+    # Владелец стены сообщения User or Group (декомпозиция от self.post для фильтра в админке)
+    wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_comments')
+    wall_owner_id = models.PositiveIntegerField()
+    wall_owner = generic.GenericForeignKey('wall_owner_content_type', 'wall_owner_id')
+
     # Автор комментария
     author_content_type = models.ForeignKey(ContentType, related_name='comments')
     author_id = models.PositiveIntegerField()
@@ -427,6 +432,8 @@ class Comment(VkontakteWallModel):
     })
 
     def save(self, *args, **kwargs):
+        self.wall_owner = self.post.wall_owner
+
         # it's here, because self.post is not in API response
         if '_' not in str(self.remote_id):
             self.remote_id = '%s_%s' % (self.post.remote_id.split('_')[0], self.remote_id)
