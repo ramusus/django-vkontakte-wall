@@ -23,12 +23,15 @@ class PostListFilter(admin.SimpleListFilter):
     parent_parameter_name = 'wall_owner'
 
     def lookups(self, request, model_admin):
-        ct_value, id_value = request.REQUEST.get(self.parent_parameter_name).split(self.separator)
-        return [(str(instance.post_id), truncate_words(instance.post.text, 5)) for instance in model_admin.model.objects.filter(**{self.ct_field_name: ct_value, self.id_field_name: id_value}).distinct(self.field_name)]
+        parent_value = request.REQUEST.get(self.parent_parameter_name)
+        if parent_value:
+            ct_value, id_value = parent_value.split(self.separator)
+            return [(str(instance.post_id), truncate_words(instance.post.text, 5)) for instance in model_admin.model.objects.order_by().filter(**{self.ct_field_name: ct_value, self.id_field_name: id_value}).distinct(self.field_name)]
 
     def queryset(self, request, queryset):
-        if self.value():
-            ct_value, id_value = request.REQUEST.get(self.parent_parameter_name).split(self.separator)
+        parent_value = request.REQUEST.get(self.parent_parameter_name)
+        if parent_value and self.value():
+            ct_value, id_value = parent_value.split(self.separator)
             return queryset.filter(**{self.ct_field_name: ct_value, self.id_field_name: id_value, self.field_name: self.value()})
 
 class CommentInline(admin.TabularInline):
