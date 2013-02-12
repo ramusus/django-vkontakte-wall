@@ -14,9 +14,9 @@ setup(
     include_package_data=True,
     zip_safe=False, # because we're including media that Django needs
     install_requires=[
-        'django-vkontakte-api==0.1.1',
-	'factory_boy',
-#	'django-ajax-selects',
+        'django-vkontakte-api==0.2.1',
+        'factory_boy',
+#       'django-ajax-selects',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

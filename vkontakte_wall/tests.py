@@ -6,14 +6,13 @@ from vkontakte_users.models import User
 from datetime import datetime
 import simplejson as json
 
-USER_ID = 18658732
-POST_ID = '18658732_2019'
+USER_ID = 5223304
+POST_ID = '5223304_130'
 GROUP_ID = 16297716
 GROUP_SCREEN_NAME = 'cocacola'
 GROUP_POST_ID = '-16297716_126261'
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
-
 
 class VkontakteWallTest(TestCase):
 
@@ -28,6 +27,9 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(len(posts) > 0)
         self.assertEqual(Post.objects.count(), len(posts))
         self.assertEqual(posts[0].wall_owner, owner)
+
+        owner.fetch_posts(all=True)
+        self.assertTrue(Post.objects.count() > len(posts))
 
     def test_fetch_group_wall(self):
 
@@ -71,6 +73,9 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(len(comments) > 0)
         self.assertEqual(Comment.objects.count(), len(comments))
         self.assertEqual(comments[0].post, post)
+
+        post.fetch_comments(all=True)
+#        self.assertTrue(Comment.objects.count() > len(comments)) only 1 comment
 
     def test_fetch_group_post_comments(self):
 
