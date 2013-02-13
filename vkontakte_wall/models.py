@@ -148,6 +148,7 @@ class WallAbstractModel(VkontakteModel):
         abstract = True
 
     methods_namespace = 'wall'
+    slug_prefix ='wall'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
@@ -164,8 +165,6 @@ class Post(WallAbstractModel):
         verbose_name = u'Сообщение Вконтакте'
         verbose_name_plural = u'Сообщения Вконтакте'
         ordering = ['wall_owner_id','-date']
-
-    slug_prefix ='wall'
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
