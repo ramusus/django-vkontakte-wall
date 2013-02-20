@@ -1,0 +1,2 @@
+factory_boy
+django-vkontakte-api>=0.3.4
