@@ -1,5 +1,7 @@
 # Django Vkontakte Wall
 
+<a href="https://travis-ci.org/ramusus/django-vkontakte-wall" title="Django Vkontakte Wall Travis Status"><img src="https://secure.travis-ci.org/ramusus/django-vkontakte-wall.png"></a>
+
 Приложение позволяет взаимодействовать со стенами Вконтакте, сообщениями и комментариями на них через Вконтакте API и парсер используя стандартные модели Django
 
 ## Установка
