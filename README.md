@@ -13,6 +13,7 @@
     INSTALLED_APPS = (
         ...
         'vkontakte_api',
+        'vkontakte_users',
         'vkontakte_wall',
     )
 
