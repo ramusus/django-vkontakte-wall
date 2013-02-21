@@ -157,7 +157,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.reposts, 3)
         self.assertEqual(instance.comments, 4)
         self.assertEqual(instance.text, 'qwerty')
-        self.assertEqual(instance.date, datetime(2011,2,22,12,0,0))
+        self.assertEqual(instance.date, datetime(2011,2,22,9,0,0))
 
     def test_parse_comments(self):
 
@@ -174,7 +174,7 @@ class VkontakteWallTest(TestCase):
 
         self.assertEqual(instance.remote_id, '1_2505')
         self.assertEqual(instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
-        self.assertEqual(instance.date, datetime(2011,2,22,12,0,0))
+        self.assertEqual(instance.date, datetime(2011,2,22,9,0,0))
         self.assertEqual(instance.author, author)
 
         instance.parse(json.loads(response)['response'][2])
