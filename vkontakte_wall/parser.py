@@ -17,12 +17,9 @@ class VkontakteWallParser(VkontakteParser):
 
         text = container.find('span', {'class': re.compile('^rel_date')})
         if text:
-            text = text.text
+            return self.parse_date(text.text)
         else:
             raise VkontakteParseError("Impossible to find date container in %s" % container)
-            return datetime(1970,1,1)
-
-        return self.parse_date(text)
 
     def parse_comment(self, content, wall_owner=None):
         from models import Comment

@@ -12,10 +12,20 @@
 
     INSTALLED_APPS = (
         ...
+        'oauth_tokens',
         'vkontakte_api',
         'vkontakte_users',
         'vkontakte_wall',
     )
+
+    # oauth-tokens settings
+    OAUTH_TOKENS_HISTORY = True                                         # to keep in DB expired access tokens
+    OAUTH_TOKENS_VKONTAKTE_CLIENT_ID = ''                               # application ID
+    OAUTH_TOKENS_VKONTAKTE_CLIENT_SECRET = ''                           # application secret key
+    OAUTH_TOKENS_VKONTAKTE_SCOPE = ['ads,wall,photos,friends,stats']    # application scopes
+    OAUTH_TOKENS_VKONTAKTE_USERNAME = ''                                # user login
+    OAUTH_TOKENS_VKONTAKTE_PASSWORD = ''                                # user password
+    OAUTH_TOKENS_VKONTAKTE_PHONE_END = ''                               # last 4 digits of user mobile phone
 
 ## Примеры использования
 
