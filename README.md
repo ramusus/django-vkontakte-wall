@@ -1,6 +1,6 @@
 # Django Vkontakte Wall
 
-[![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall)
+[![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-wall/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-wall)
 
 Приложение позволяет взаимодействовать со стенами Вконтакте, сообщениями и комментариями на них через Вконтакте API и парсер используя стандартные модели Django
 

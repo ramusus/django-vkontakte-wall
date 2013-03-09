@@ -8,9 +8,12 @@ install:
   - pip install -q Django>=$DJANGO --use-mirrors
   - pip install -q simplejson --use-mirrors
   - pip install -q factory_boy --use-mirrors
+  - pip install -q coveralls --use-mirrors
   - pip install -q . --use-mirrors
 script:
-  - python quicktest.py vkontakte_wall
+  - coverage run --source=vkontakte_wall quicktest.py vkontakte_wall
+after_success:
+  - coveralls
 notifications:
   email:
     recipients:

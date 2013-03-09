@@ -299,8 +299,9 @@ class Post(WallAbstractModel):
 
     def update_likes(self, offset=0):
         '''
-        Update fields:
+        Update and save fields:
             * likes - count of likes
+        Update relations:
             * like_users - users, who likes this post
         '''
 
@@ -339,8 +340,9 @@ class Post(WallAbstractModel):
 
     def update_reposts(self, offset=0):
         '''
-        Update fields:
+        Update and save fields:
             * reposts - count of reposts
+        Update relations
             * repost_users - users, who repost this post
         '''
         post_data = {
