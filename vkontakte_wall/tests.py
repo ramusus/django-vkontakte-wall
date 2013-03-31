@@ -103,23 +103,23 @@ class VkontakteWallTest(TestCase):
 #        self.assertEqual(comments[0].post, post)
 #        self.assertEqual(post.comments, len(comments))
 
-    def test_update_post_reposts(self):
+    def test_fetch_post_reposts(self):
 
         post = PostFactory.create(remote_id=GROUP_POST_ID)
 
         self.assertEqual(post.reposts, 0)
         self.assertEqual(post.repost_users.count(), 0)
-        post.update_reposts()
+        post.fetch_reposts()
         self.assertNotEqual(post.reposts, 0)
         self.assertNotEqual(post.repost_users.count(), 0)
 
-    def test_update_post_likes(self):
+    def test_fetch_post_likes(self):
 
         post = PostFactory.create(remote_id=GROUP_POST_ID)
 
         self.assertEqual(post.likes, 0)
         self.assertEqual(post.like_users.count(), 0)
-        post.update_likes()
+        post.fetch_likes()
         self.assertNotEqual(post.likes, 0)
         self.assertNotEqual(post.like_users.count(), 0)
         self.assertTrue(post.like_users.count() > 24)
