@@ -5,6 +5,7 @@ from factories import PostFactory, UserFactory, GroupFactory
 from vkontakte_users.models import User
 from datetime import datetime
 import simplejson as json
+import mock
 
 USER_ID = 5223304
 POST_ID = '5223304_130'
@@ -47,6 +48,17 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(posts[0].comments + posts[1].comments > 0)
         self.assertTrue(len(posts[0].text) > 0)
 
+        # testing after parameter
+        after = Post.objects.order_by('date')[0].date
+
+        Post.objects.all().delete()
+        self.assertEqual(Post.objects.count(), 0)
+
+        posts = group.fetch_posts(after=after)
+
+        self.assertTrue(len(posts), 10)
+        self.assertEqual(Post.objects.count(), 10)
+
     def test_fetch_group_open_wall(self):
 
         group = GroupFactory.create(remote_id=OPEN_WALL_GROUP_ID, screen_name=OPEN_WALL_GROUP_SCREEN_NAME)
@@ -77,7 +89,8 @@ class VkontakteWallTest(TestCase):
         post.fetch_comments(all=True)
 #        self.assertTrue(Comment.objects.count() > len(comments)) only 1 comment
 
-    def test_fetch_group_post_comments(self):
+    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
+    def test_fetch_group_post_comments(self, *args, **kwargs):
 
         group = GroupFactory.create(remote_id=GROUP_ID, screen_name=GROUP_SCREEN_NAME)
         post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
@@ -103,26 +116,27 @@ class VkontakteWallTest(TestCase):
 #        self.assertEqual(comments[0].post, post)
 #        self.assertEqual(post.comments, len(comments))
 
-    def test_fetch_post_reposts(self):
+    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
+    def test_fetch_post_reposts(self, *args, **kwargs):
 
         post = PostFactory.create(remote_id=GROUP_POST_ID)
 
         self.assertEqual(post.reposts, 0)
         self.assertEqual(post.repost_users.count(), 0)
         post.fetch_reposts()
-        self.assertNotEqual(post.reposts, 0)
-        self.assertNotEqual(post.repost_users.count(), 0)
+        self.assertTrue(post.reposts >= 38)
+        self.assertTrue(post.repost_users.count() >= 38)
 
-    def test_fetch_post_likes(self):
+    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
+    def test_fetch_post_likes(self, *args, **kwargs):
 
         post = PostFactory.create(remote_id=GROUP_POST_ID)
 
         self.assertEqual(post.likes, 0)
         self.assertEqual(post.like_users.count(), 0)
         post.fetch_likes()
-        self.assertNotEqual(post.likes, 0)
-        self.assertNotEqual(post.like_users.count(), 0)
-        self.assertTrue(post.like_users.count() > 24)
+        self.assertTrue(post.likes > 120)
+        self.assertTrue(post.like_users.count() > 120)
 
     def test_parse_post(self):
 
@@ -157,7 +171,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.reposts, 3)
         self.assertEqual(instance.comments, 4)
         self.assertEqual(instance.text, 'qwerty')
-        self.assertEqual(instance.date, datetime(2011,2,22,9,0,0))
+        self.assertTrue(isinstance(instance.date, datetime))
 
     def test_parse_comments(self):
 
@@ -174,8 +188,8 @@ class VkontakteWallTest(TestCase):
 
         self.assertEqual(instance.remote_id, '1_2505')
         self.assertEqual(instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
-        self.assertEqual(instance.date, datetime(2011,2,22,9,0,0))
         self.assertEqual(instance.author, author)
+        self.assertTrue(isinstance(instance.date, datetime))
 
         instance.parse(json.loads(response)['response'][2])
         instance.save()

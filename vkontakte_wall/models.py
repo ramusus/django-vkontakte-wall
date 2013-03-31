@@ -66,13 +66,13 @@ class PostRemoteManager(VkontakteManager):
                 log.error(e)
                 continue
 
-            post.raw_html = unicode(item)
-            post.save()
-            parsed.send(sender=Post, instance=post, container=item)
-
             if after and post.date < after:
                 need_cut = True
                 break
+
+            post.raw_html = unicode(item)
+            post.save()
+            parsed.send(sender=Post, instance=post, container=item)
 
         if len(items) == 20 and not need_cut:
             return self.fetch_group_wall(group, offset=current_count, count=count, own=own, after=after)
@@ -316,40 +316,51 @@ class Post(WallAbstractModel):
         '''
 
         post_data = {
-            'act':'a_get_members',
+            'act': 'show',
             'al': 1,
-            'object': 'wall%s' % self.remote_id,
-            'only_content': 1,
-            'published': 0,
-            'tab': 0,
-            'offset': offset,
+            'w': 'likes/wall%s' % self.remote_id,
         }
+
+        if offset == 0:
+            number_on_page = 120
+            post_data['loc'] = 'wall%s' % self.remote_id,
+        else:
+            number_on_page = 60
+            post_data['offset'] = offset
 
         log.debug('Fetching likes of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
-        parser = VkontakteWallParser().request('/like.php', data=post_data)
+        parser = VkontakteWallParser().request('/wkview.php', data=post_data)
 
         if offset == 0:
-            title = parser.content_bs.find('h4')
-            if title:
-                try:
-                    self.likes = int(title.text.split(' ')[1])
-                    self.save()
-                except:
-                    log.warning('Strange format of h4 container: "%s"' % title.text)
+            try:
+                self.likes = int(parser.content_bs.find('a', {'id': 'wk_likes_tablikes'}).find('nobr').text.split()[0])
+                self.save()
+            except:
+                log.warning('Strange markup of first page likes response: "%s"' % parser.content)
             self.like_users.clear()
 
-        avatars = parser.content_bs.findAll('div', {'class': 'liked_box_row'})
-        for avatar in avatars:
-            user = User.remote.get_by_slug(avatar.findAll('a')[1]['href'][1:])
+        #<div class="wk_likes_liker_row inl_bl" id="wk_likes_liker_row722246">
+        #  <div class="wk_likes_likerph_wrap" onmouseover="WkView.likesBigphOver(this, 722246)">
+        #    <a class="wk_likes_liker_ph" href="/kicolenka">
+        #      <img class="wk_likes_liker_img" src="http://cs418825.vk.me/v418825246/6cf8/IBbSfmDz6R8.jpg" width="100" height="100" />
+        #    </a>
+        #  </div>
+        #  <div class="wk_likes_liker_name"><a class="wk_likes_liker_lnk" href="/kicolenka">Оля Киселева</a></div>
+        #</div>
+
+        items = parser.content_bs.findAll('div', {'class': re.compile(r'^wk_likes_liker_row')})
+        for item in items:
+            user_link = item.find('a', {'class': 'wk_likes_liker_lnk'})
+            user = User.remote.get_by_slug(user_link['href'][1:])
             if user:
-                user.first_name = avatar.findAll('a')[1].text
-                user.photo = avatar.find('img')['src']
+                user.set_name(user_link.text)
+                user.photo = item.find('img', {'class': 'wk_likes_liker_img'})['src']
                 user.save()
                 self.like_users.add(user)
 
-        if len(avatars) == 24:
-            self.fetch_likes(offset=offset+24)
+        if len(items) == number_on_page:
+            self.fetch_likes(offset=offset+number_on_page)
 
     def fetch_reposts(self, offset=0):
         '''
@@ -359,37 +370,49 @@ class Post(WallAbstractModel):
             * repost_users - users, who repost this post
         '''
         post_data = {
-            'act':'a_get_members',
+            'act': 'show',
             'al': 1,
-            'object': 'wall%s' % self.remote_id,
-            'only_content': 1,
-            'published': 1,
-            'tab': 1,
-            'offset': offset,
+            'w': 'shares/wall%s' % self.remote_id,
         }
+
+        if offset == 0:
+            number_on_page = 40
+            post_data['loc'] = 'wall%s' % self.remote_id,
+        else:
+            number_on_page = 20
+            post_data['offset'] = offset
 
         log.debug('Fetching reposts of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
-        parser = VkontakteWallParser().request('/like.php', data=post_data)
+        parser = VkontakteWallParser().request('/wkview.php', data=post_data)
 
         if offset == 0:
-            title = parser.content_bs.find('h4')
-            if title:
-                self.reposts = int(title.text.split(' ')[0])
+            try:
+                self.reposts = int(parser.content_bs.find('a', {'id': 'wk_likes_tabshares'}).find('nobr').text.split()[0])
                 self.save()
+            except:
+                log.warning('Strange markup of first page shares response: "%s"' % parser.content)
             self.repost_users.clear()
 
-        avatars = parser.content_bs.findAll('div', {'class': 'liked_box_row'})
-        for avatar in avatars:
-            user = User.remote.get_by_slug(avatar.findAll('a')[1]['href'][1:])
+        #<div id="post65120659_2341" class="post post_copy" onmouseover="wall.postOver('65120659_2341')" onmouseout="wall.postOut('65120659_2341')" data-copy="-16297716_126261" onclick="wall.postClick('65120659_2341', event)">
+        #  <div class="post_table">
+        #    <div class="post_image">
+        #      <a class="post_image" href="/vano0ooooo"><img src="/images/camera_c.gif" width="50" height="50"/></a>
+        #    </div>
+        #      <div class="wall_text"><a class="author" href="/vano0ooooo" data-from-id="65120659">Иван Панов</a> <div id="wpt65120659_2341"></div><table cellpadding="0" cellspacing="0" class="published_by_wrap">
+
+        items = parser.content_bs.findAll('div', {'id': re.compile('^post')})
+        for item in items:
+            user_link = item.find('a', {'class': 'author'})
+            user = User.remote.get_by_slug(user_link['href'][1:])
             if user:
-                user.first_name = avatar.findAll('a')[1].text
-                user.photo = avatar.find('img')['src']
+                user.set_name(user_link.text)
+                user.photo = item.find('a', {'class': 'post_image'}).find('img')['src']
                 user.save()
                 self.repost_users.add(user)
 
-        if len(avatars) == 24:
-            self.fetch_reposts(offset=offset+24)
+        if len(items) == number_on_page:
+            self.fetch_reposts(offset=offset+number_on_page)
 
 class Comment(WallAbstractModel):
     class Meta:
