@@ -35,6 +35,8 @@ class PostRemoteManager(VkontakteManager):
         if count:
             kwargs.update({'count': count})
 
+        log.debug('Fetching post of user "%s", offset %d' % (user, offset))
+
         return self.fetch(**kwargs)
 
     def fetch_group_wall(self, group, offset=0, count=None, own=False, after=None):
@@ -44,6 +46,9 @@ class PostRemoteManager(VkontakteManager):
             'own': int(own), # posts by only group or any users
             'part': 1, # without header, footer
         }
+
+        log.debug('Fetching post of group "%s", offset %d' % (group, offset))
+
         parser = VkontakteWallParser().request('/wall-%s' % group.remote_id, data=post_data)
 
         items = parser.content_bs.findAll('div', {'class': re.compile('^post'), 'id': re.compile('^post-%d' % group.remote_id)})
@@ -93,6 +98,9 @@ class CommentRemoteManager(VkontakteManager):
             kwargs.update({'count': count})
 
         kwargs['extra_fields'] = {'post_id': post.id}
+
+        log.debug('Fetching comments to post "%s" of user "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
+
         return self.fetch(**kwargs)
 
     def fetch_group_post(self, post, offset=0, count=None):#, after=None, only_new=False):
@@ -101,6 +109,9 @@ class CommentRemoteManager(VkontakteManager):
             'offset': offset,
             'part': 1,
         }
+
+        log.debug('Fetching comments to post "%s" of group "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
+
         parser = VkontakteWallParser().request('/wall%s' % (post.remote_id), data=post_data)
 
         items = parser.content_bs.findAll('div', {'class': 'fw_reply'})
@@ -161,7 +172,6 @@ class WallAbstractModel(VkontakteModel):
 
 class Post(WallAbstractModel):
     class Meta:
-        db_table = 'vkontakte_wall_post'
         verbose_name = u'Сообщение Вконтакте'
         verbose_name_plural = u'Сообщения Вконтакте'
         ordering = ['wall_owner_id','-date']
@@ -297,7 +307,7 @@ class Post(WallAbstractModel):
         elif self.on_user_wall:
             return Comment.remote.fetch_user_post(post=self, *args, **kwargs)
 
-    def update_likes(self, offset=0):
+    def fetch_likes(self, offset=0):
         '''
         Update and save fields:
             * likes - count of likes
@@ -314,6 +324,9 @@ class Post(WallAbstractModel):
             'tab': 0,
             'offset': offset,
         }
+
+        log.debug('Fetching likes of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+
         parser = VkontakteWallParser().request('/like.php', data=post_data)
 
         if offset == 0:
@@ -336,9 +349,9 @@ class Post(WallAbstractModel):
                 self.like_users.add(user)
 
         if len(avatars) == 24:
-            self.update_likes(offset=offset+24)
+            self.fetch_likes(offset=offset+24)
 
-    def update_reposts(self, offset=0):
+    def fetch_reposts(self, offset=0):
         '''
         Update and save fields:
             * reposts - count of reposts
@@ -354,6 +367,9 @@ class Post(WallAbstractModel):
             'tab': 1,
             'offset': offset,
         }
+
+        log.debug('Fetching reposts of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+
         parser = VkontakteWallParser().request('/like.php', data=post_data)
 
         if offset == 0:
@@ -373,13 +389,12 @@ class Post(WallAbstractModel):
                 self.repost_users.add(user)
 
         if len(avatars) == 24:
-            self.update_reposts(offset=offset+24)
+            self.fetch_reposts(offset=offset+24)
 
 class Comment(WallAbstractModel):
     class Meta:
-        db_table = 'vkontakte_wall_comment'
-        verbose_name = u'Коментарий Вконтакте'
-        verbose_name_plural = u'Комментарии Вконтакте'
+        verbose_name = u'Коментарий сообщения Вконтакте'
+        verbose_name_plural = u'Комментарии сообщений Вконтакте'
         ordering = ['post','-date']
 
     remote_pk_field = 'cid'

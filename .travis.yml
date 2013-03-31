@@ -4,12 +4,11 @@ python:
 env:
   - DJANGO=1.4
 install:
-  - pip install -qr requirements.txt --use-mirrors
-  - pip install -q Django>=$DJANGO --use-mirrors
-  - pip install -q simplejson --use-mirrors
-  - pip install -q factory_boy --use-mirrors
-  - pip install -q coveralls --use-mirrors
-  - pip install -q . --use-mirrors
+  - pip install Django>=$DJANGO --use-mirrors
+  - pip install simplejson --use-mirrors
+  - pip install factory_boy --use-mirrors
+  - pip install coveralls --use-mirrors
+  - pip install . --use-mirrors
 script:
   - coverage run --source=vkontakte_wall quicktest.py vkontakte_wall
 after_success:
