@@ -401,7 +401,7 @@ class Post(WallAbstractModel):
         #    </div>
         #      <div class="wall_text"><a class="author" href="/vano0ooooo" data-from-id="65120659">Иван Панов</a> <div id="wpt65120659_2341"></div><table cellpadding="0" cellspacing="0" class="published_by_wrap">
 
-        items = parser.content_bs.findAll('div', {'id': re.compile('^post')})
+        items = parser.content_bs.findAll('div', {'id': re.compile('^post'), 'class': re.compile('^post')})
         for item in items:
             user_link = item.find('a', {'class': 'author'})
             user = User.remote.get_by_slug(user_link['href'][1:])
