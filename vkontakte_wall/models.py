@@ -76,7 +76,7 @@ class PostRemoteManager(VkontakteManager):
 
         if len(items) == 20 and not need_cut:
             return self.fetch_group_wall(group, offset=current_count, count=count, own=own, after=after)
-        elif after and need_cut:
+        elif after:
             return group.wall_posts.filter(date__gte=after)
         else:
             return group.wall_posts.all()
