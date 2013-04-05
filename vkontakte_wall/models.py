@@ -256,6 +256,12 @@ class Post(WallAbstractModel):
     @property
     def on_user_wall(self):
         return self.wall_owner_content_type == ContentType.objects.get_for_model(User)
+    @property
+    def by_group(self):
+        return self.author_content_type == ContentType.objects.get_for_model(Group)
+    @property
+    def by_user(self):
+        return self.author_content_type == ContentType.objects.get_for_model(User)
 
     def __unicode__(self):
         return '%s: %s' % (unicode(self.wall_owner), self.text)
@@ -336,6 +342,8 @@ class Post(WallAbstractModel):
             try:
                 self.likes = int(parser.content_bs.find('a', {'id': 'wk_likes_tablikes'}).find('nobr').text.split()[0])
                 self.save()
+            except ValueError:
+                return
             except:
                 log.warning('Strange markup of first page likes response: "%s"' % parser.content)
             self.like_users.clear()
@@ -390,6 +398,8 @@ class Post(WallAbstractModel):
             try:
                 self.reposts = int(parser.content_bs.find('a', {'id': 'wk_likes_tabshares'}).find('nobr').text.split()[0])
                 self.save()
+            except ValueError:
+                return
             except:
                 log.warning('Strange markup of first page shares response: "%s"' % parser.content)
             self.repost_users.clear()
