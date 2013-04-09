@@ -357,18 +357,15 @@ class Post(WallAbstractModel):
         #  <div class="wk_likes_liker_name"><a class="wk_likes_liker_lnk" href="/kicolenka">Оля Киселева</a></div>
         #</div>
 
-        items = parser.content_bs.findAll('div', {'class': re.compile(r'^wk_likes_liker_row')})
-        for item in items:
-            user_link = item.find('a', {'class': 'wk_likes_liker_lnk'})
-            user = User.remote.get_by_slug(user_link['href'][1:])
-            if user:
-                user.set_name(user_link.text)
-                user.photo = item.find('img', {'class': 'wk_likes_liker_img'})['src']
-                user.save()
-                self.like_users.add(user)
+        items = parser.add_users(users=('div', {'class': re.compile(r'^wk_likes_liker_row')}),
+            user_link=('a', {'class': 'wk_likes_liker_lnk'}),
+            user_photo=('img', {'class': 'wk_likes_liker_img'}),
+            user_add=lambda user: self.like_users.add(user))
 
         if len(items) == number_on_page:
             self.fetch_likes(offset=offset+number_on_page)
+        else:
+            return self.like_users.all()
 
     def fetch_reposts(self, offset=0):
         '''
@@ -411,18 +408,15 @@ class Post(WallAbstractModel):
         #    </div>
         #      <div class="wall_text"><a class="author" href="/vano0ooooo" data-from-id="65120659">Иван Панов</a> <div id="wpt65120659_2341"></div><table cellpadding="0" cellspacing="0" class="published_by_wrap">
 
-        items = parser.content_bs.findAll('div', {'id': re.compile('^post'), 'class': re.compile('^post')})
-        for item in items:
-            user_link = item.find('a', {'class': 'author'})
-            user = User.remote.get_by_slug(user_link['href'][1:])
-            if user:
-                user.set_name(user_link.text)
-                user.photo = item.find('a', {'class': 'post_image'}).find('img')['src']
-                user.save()
-                self.repost_users.add(user)
+        items = parser.add_users(users=('div', {'id': re.compile('^post'), 'class': re.compile('^post')}),
+            user_link=('a', {'class': 'author'}),
+            user_photo=lambda item: item.find('a', {'class': 'post_image'}).find('img'),
+            user_add=lambda user: self.repost_users.add(user))
 
         if len(items) == number_on_page:
             self.fetch_reposts(offset=offset+number_on_page)
+        else:
+            return self.repost_users.all()
 
 class Comment(WallAbstractModel):
     class Meta:
