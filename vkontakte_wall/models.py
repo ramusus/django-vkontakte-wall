@@ -192,7 +192,7 @@ class Post(WallAbstractModel):
     group = generic.GenericForeignKey('author_content_type', 'author_id')
     user = generic.GenericForeignKey('author_content_type', 'author_id')
 
-    date = models.DateTimeField(u'Время сообщения')
+    date = models.DateTimeField(u'Время сообщения', db_index=True)
     text = models.TextField(u'Текст записи')
 
     comments = models.PositiveIntegerField(u'Кол-во комментариев', default=0)
@@ -459,7 +459,7 @@ class Comment(WallAbstractModel):
     group_wall_reply = generic.GenericForeignKey('reply_for_content_type', 'reply_for_id')
     user_wall_reply = generic.GenericForeignKey('reply_for_content_type', 'reply_for_id')
 
-    date = models.DateTimeField(u'Время комментария')
+    date = models.DateTimeField(u'Время комментария', db_index=True)
     text = models.TextField(u'Текст комментария')
 
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)

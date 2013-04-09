@@ -25,4 +25,4 @@ class CommentFactory(factory.Factory):
 
     post = factory.SubFactory(PostFactory)
     author = factory.SubFactory(UserFactory)
-    remote_id = factory.Sequence(lambda n: n)
+    remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.post.remote_id, n))
