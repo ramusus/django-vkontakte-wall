@@ -8,19 +8,13 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        # Deleting field 'Post.copy_post_id'
-        db.delete_column('vkontakte_wall_post', 'copy_post_id')
 
         # Adding field 'Post.copy_owner_content_type'
         db.add_column('vkontakte_wall_post', 'copy_owner_content_type',
                       self.gf('django.db.models.fields.related.ForeignKey')(related_name='vkontakte_wall_copy_posts', null=True, to=orm['contenttypes.ContentType']),
                       keep_default=False)
 
-        # Adding field 'Post.copy_post'
-        db.add_column('vkontakte_wall_post', 'copy_post',
-                      self.gf('django.db.models.fields.related.ForeignKey')(default=None, to=orm['vkontakte_wall.Post']),
-                      keep_default=False)
-
+        db.alter_column('vkontakte_wall_post', 'copy_post_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['vkontakte_wall.Post'], null=True))
 
         # Changing field 'Post.copy_owner_id'
         db.alter_column('vkontakte_wall_post', 'copy_owner_id', self.gf('django.db.models.fields.PositiveIntegerField')(null=True))
