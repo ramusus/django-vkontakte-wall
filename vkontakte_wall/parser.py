@@ -133,4 +133,23 @@ class VkontakteWallParser(VkontakteParser):
         if wall_owner:
             instance.wall_owner = wall_owner
 
+        #<td>
+        #  <div class="published_by_title"><a class="published_by" href="/yullz">Yulya Tsareva</a> </div>
+        #  <div class="published_by_date"><a class="published_by_date"  href="/wall59124156_8301" onclick="return showWiki({w: 'wall59124156_8301'}, false, event);" >29 янв 2013 в 15:51</a></div>
+        #</td>
+        try:
+            slug = content.find('a', {'class': 'published_by'})['href'][1:]
+            post_link = content.find('a', {'class': 'published_by_date'})
+            instance.copy_owner = get_object_by_slug(slug)
+            instance.copy_post = Post.objects.get_or_create(remote_id=content.find('a', {'class': 'published_by_date'})['href'][5:], defaults={
+                'wall_owner': instance.copy_owner,
+                'date': self.parse_date(post_link.text)
+            })[0]
+        except:
+            pass
+        # <div class="published_comment wall_post_text">дядька молодец</div>
+        copy_text = content.find('div', {'class': 'published_comment wall_post_text'})
+        if copy_text:
+            instance.copy_text = copy_text.text
+
         return instance

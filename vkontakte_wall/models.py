@@ -40,6 +40,7 @@ class PostRemoteManager(VkontakteManager):
         return self.fetch(**kwargs)
 
     def fetch_group_wall(self, group, offset=0, count=None, own=False, after=None):
+        # TODO: проверить новый метод для получения постов со стены http://vk.com/developers.php?p=wall.get
         post_data = {
             'al':1,
             'offset': offset,
@@ -235,9 +236,12 @@ class Post(WallAbstractModel):
     geo = models.TextField()
 
     signer_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись была опубликована от имени группы и подписана пользователем, то в поле содержится идентификатор её автора')
-    # могут быть негативные id, это группы или страницы
-    copy_owner_id = models.IntegerField(null=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
-    copy_post_id = models.PositiveIntegerField(null=True, help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
+
+    copy_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_copy_posts', null=True)
+    copy_owner_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
+    copy_owner = generic.GenericForeignKey('copy_owner_content_type', 'copy_owner_id')
+
+    copy_post = models.ForeignKey('Post', null=True, help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
     copy_text = models.TextField(u'Комментарий при репосте', help_text=u'Если запись является копией записи с чужой стены и при её копировании был добавлен комментарий, его текст содержится в данном поле')
 
     # not in API
@@ -289,6 +293,16 @@ class Post(WallAbstractModel):
         if self.author_content_type.id not in allowed_ct_ids:
             raise ValueError("'author' field should be Group or User instance, not %s" % self.author_content_type)
 
+        # поле назначено через API
+        if self.copy_owner_id and not self.copy_owner_content_type:
+            ct_model = User if self.copy_owner_id > 0 else Group
+            self.copy_owner_content_type = ContentType.objects.get_for_model(ct_model)
+            self.copy_owner = ct_model.remote.fetch(ids=[abs(self.copy_owner_id)])[0]
+
+        # save generic fields before saving post
+        if self.copy_owner:
+            self.copy_owner.save()
+
         return super(Post, self).save(*args, **kwargs)
 
     def parse(self, response):
@@ -320,7 +334,7 @@ class Post(WallAbstractModel):
         Update relations:
             * like_users - users, who likes this post
         '''
-
+        # TODO: реализовать http://vk.com/developers.php?o=-1&p=likes.getList
         post_data = {
             'act': 'show',
             'al': 1,
@@ -456,6 +470,7 @@ class Comment(WallAbstractModel):
     date = models.DateTimeField(u'Время комментария', db_index=True)
     text = models.TextField(u'Текст комментария')
 
+    # TODO: реализовать http://vk.com/developers.php?o=-1&p=likes.getList
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
 
     objects = models.Manager()
