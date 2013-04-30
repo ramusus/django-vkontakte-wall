@@ -27,6 +27,26 @@
     OAUTH_TOKENS_VKONTAKTE_PASSWORD = ''                                # user password
     OAUTH_TOKENS_VKONTAKTE_PHONE_END = ''                               # last 4 digits of user mobile phone
 
+## Покрытие методов API
+
+* [wall.get](http://vk.com/developers.php?oid=-1&p=wall.get) – возвращает список записей со стены;
+* [wall.getComments](http://vk.com/developers.php?oid=-1&p=wall.getComments) – получает комментарии к записи на стене пользователя;
+
+В планах:
+
+* [wall.getById](http://vk.com/developers.php?oid=-1&p=wall.getById) – получает записи со стен пользователей по их идентификаторам.
+* [wall.post](http://vk.com/developers.php?oid=-1&p=wall.post) – добавляет запись на стену.
+* [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
+
+## Использование парсера
+
+* Получение сообщений со стены группы. *
+* Получение комментариев сообщения со стены группы. *
+* Получение лайков сообщения. *
+* Получение перепостов сообщения.
+
+(*) До недавнего момента это было невозможно сделать через API.
+
 ## Примеры использования
 
 ### Получение сообщений со стены пользователя через метод пользователя

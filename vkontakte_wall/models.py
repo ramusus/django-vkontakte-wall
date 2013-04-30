@@ -4,7 +4,6 @@ from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from datetime import datetime
-from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteManager, VkontakteModel
 from vkontakte_api.decorators import fetch_all
