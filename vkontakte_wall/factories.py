@@ -5,7 +5,7 @@ from datetime import datetime
 import factory
 import random
 
-class PostFactory(factory.Factory):
+class PostFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Post
 
     date = datetime.now()
@@ -18,7 +18,7 @@ class GroupPostFactory(PostFactory):
     wall_owner = factory.SubFactory(GroupFactory)
     remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.wall_owner.remote_id, n))
 
-class CommentFactory(factory.Factory):
+class CommentFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Comment
 
     date = datetime.now()
