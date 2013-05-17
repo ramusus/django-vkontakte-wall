@@ -45,13 +45,13 @@ class PostAdmin(VkontakteModelAdmin):
     list_display = ('wall_owner','text','author','vk_link','date','comments','likes','reposts')
     list_display_links = ('text',)
     list_filter = (WallOwnerListFilter,)
-    search_fields = ('text','copy_text')
+    search_fields = ('text','copy_text','remote_id')
     exclude = ('like_users','repost_users',)
     inlines = [CommentInline]
 
 class CommentAdmin(VkontakteModelAdmin):
     list_display = ('author','text','post','vk_link','date','likes')
-    search_fields = ('text',)
+    search_fields = ('text','remote_id')
     list_filter = (WallOwnerListFilter,PostListFilter,)
 
 admin.site.register(Post, PostAdmin)
