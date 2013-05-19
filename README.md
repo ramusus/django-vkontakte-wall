@@ -1,10 +1,10 @@
-# Django Vkontakte Wall
-
-[![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-wall/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-wall)
+Django Vkontakte Wall [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-wall/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-wall)
+=====================
 
 Приложение позволяет взаимодействовать со стенами Вконтакте, сообщениями и комментариями на них через Вконтакте API и парсер используя стандартные модели Django
 
-## Установка
+Установка
+---------
 
     pip install django-vkontakte-wall
 
@@ -27,7 +27,8 @@
     OAUTH_TOKENS_VKONTAKTE_PASSWORD = ''                                # user password
     OAUTH_TOKENS_VKONTAKTE_PHONE_END = ''                               # last 4 digits of user mobile phone
 
-## Покрытие методов API
+Покрытие методов API
+--------------------
 
 * [wall.get](http://vk.com/developers.php?oid=-1&p=wall.get) – возвращает список записей со стены;
 * [wall.getComments](http://vk.com/developers.php?oid=-1&p=wall.getComments) – получает комментарии к записи на стене пользователя;
@@ -38,7 +39,8 @@
 * [wall.post](http://vk.com/developers.php?oid=-1&p=wall.post) – добавляет запись на стену.
 * [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
 
-## Использование парсера
+Использование парсера
+---------------------
 
 * Получение сообщений со стены группы. *
 * Получение комментариев сообщения со стены группы. *
@@ -47,7 +49,8 @@
 
 (*) До недавнего момента это было невозможно сделать через API.
 
-## Примеры использования
+Примеры использования
+---------------------
 
 ### Получение сообщений со стены пользователя через метод пользователя
 
@@ -103,12 +106,4 @@
     >>> user = User.remote.fetch(ids=[1])[0]
     >>> post = user.wall_posts.all()[0]
     >>> Comment.remote.fetch_user_post(post=post)
-    [<Comment: ...>, <Comment: ...>, <Comment: ...>, '...(remaining elements truncated)...']
-
-### Получение комментариев сообщения со стены группы через менеджер
-
-    >>> from vkontakte_groups.models import Group
-    >>> group = Group.remote.fetch(ids=[16297716])[0]
-    >>> post = group.wall_posts.all()[0]
-    >>> Comment.remote.fetch_group_post(post=post)
     [<Comment: ...>, <Comment: ...>, <Comment: ...>, '...(remaining elements truncated)...']
