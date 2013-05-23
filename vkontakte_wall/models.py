@@ -403,7 +403,6 @@ class Post(WallAbstractModel):
         log.debug('Fetching reposts of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
         parser = VkontakteWallParser().request('/wkview.php', data=post_data)
-
         if offset == 0:
             try:
                 self.reposts = int(parser.content_bs.find('a', {'id': 'wk_likes_tabshares'}).find('nobr').text.split()[0])
@@ -421,7 +420,7 @@ class Post(WallAbstractModel):
         #    </div>
         #      <div class="wall_text"><a class="author" href="/vano0ooooo" data-from-id="65120659">Иван Панов</a> <div id="wpt65120659_2341"></div><table cellpadding="0" cellspacing="0" class="published_by_wrap">
 
-        items = parser.add_users(users=('div', {'id': re.compile('^post'), 'class': re.compile('^post')}),
+        items = parser.add_users(users=('div', {'id': re.compile('^post\d'), 'class': re.compile('^post ')}),
             user_link=('a', {'class': 'author'}),
             user_photo=lambda item: item.find('a', {'class': 'post_image'}).find('img'),
             user_add=lambda user: self.repost_users.add(user))
