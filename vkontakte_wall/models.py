@@ -58,7 +58,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         else:
             return super(PostRemoteManager, self).parse_response_dict(resource, extra_fields)
 
-    @fetch_all(return_all=lambda self,owner,*a,**k: owner.wall_posts.all())
+    @fetch_all
     def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, after=None, **kwargs):
 
         if filter not in ['owner','others','all']:
@@ -126,7 +126,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
 class CommentRemoteManager(VkontakteWallManager):
 
-    @fetch_all(return_all=lambda self,post,*a,**k: post.wall_comments.all())
+    @fetch_all
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")

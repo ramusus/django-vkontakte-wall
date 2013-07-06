@@ -62,18 +62,16 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Post.objects.count(), 0)
 
         posts = group.fetch_posts(after=after)
+        self.assertTrue(len(posts) == Post.objects.count() == 10)
 
-        self.assertEqual(len(posts), 10)
-        self.assertEqual(Post.objects.count(), 10)
-
-        # testing `after` and `all` parameters
+        # testing `after` and `all` parameters and returning less than all scope of posts
         Post.objects.all().delete()
         self.assertEqual(Post.objects.count(), 0)
 
+        group.fetch_posts(count=30)
         posts = group.fetch_posts(after=after, all=True)
-
+        self.assertEqual(Post.objects.count(), 30)
         self.assertEqual(len(posts), 10)
-        self.assertEqual(Post.objects.count(), 10)
 
     def test_fetch_group_open_wall(self):
 
