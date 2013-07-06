@@ -4,11 +4,12 @@ from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from datetime import datetime
+from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel
+from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteContentError
 from vkontakte_api.decorators import fetch_all
-from vkontakte_users.models import User
-from vkontakte_groups.models import Group
+from vkontakte_users.models import User, ParseUsersMixin
+from vkontakte_groups.models import Group, ParseGroupsMixin
 from parser import VkontakteWallParser, VkontakteParseError
 import logging
 import re
@@ -17,29 +18,68 @@ log = logging.getLogger('vkontakte_wall')
 
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
-class PostRemoteManager(VkontakteManager):
+class VkontakteWallManager(VkontakteManager):
 
-    @fetch_all(return_all=lambda user,*a,**k: user.wall_posts.all())
-    def fetch_user_wall(self, user, offset=0, count=None, filter='all', extended=False, **kwargs):
+    def fetch(self, after=None, *args, **kwargs):
+        '''
+        Retrieve and save object to local DB
+        '''
+        instances = []
+        for instance in self.get(*args, **kwargs):
+            if after and after > instance.date:
+                break
+            instances += [self.get_or_create_from_instance(instance)]
+
+        return instances
+
+class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
+
+    response_instances_fieldname = 'wall'
+
+    def fetch(self, ids=None, *args, **kwargs):
+        '''
+        Retrieve and save object to local DB
+        '''
+        if ids:
+            kwargs['posts'] = ','.join(ids)
+            kwargs['method'] = 'getById'
+
+        return super(PostRemoteManager, self).fetch(*args, **kwargs)
+
+    def parse_response_dict(self, resource, extra_fields=None):
+        if self.response_instances_fieldname in resource:
+            # if extended = 1 in request
+            self.parse_response_users(resource)
+            self.parse_response_groups(resource)
+            return super(PostRemoteManager, self).parse_response_list(resource[self.response_instances_fieldname], extra_fields)
+        else:
+            return super(PostRemoteManager, self).parse_response_dict(resource, extra_fields)
+
+    @fetch_all(return_all=lambda self,owner,*a,**k: owner.wall_posts.all())
+    def fetch_wall(self, owner, offset=0, count=None, filter='all', extended=False, after=None, **kwargs):
 
         if filter not in ['owner','others','all']:
             raise ValueError("Attribute 'fiter' has illegal value '%s'" % filter)
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
 
-        kwargs['owner_id'] = user.remote_id
+        kwargs['owner_id'] = owner.remote_id
         kwargs['filter'] = filter
         kwargs['extended'] = int(extended)
         kwargs['offset'] = int(offset)
         if count:
             kwargs.update({'count': count})
+        if isinstance(owner, Group):
+            kwargs['owner_id'] *= -1
 
-        log.debug('Fetching post of user "%s", offset %d' % (user, offset))
+        log.debug('Fetching post of owner "%s", offset %d' % (owner, offset))
 
-        return self.fetch(**kwargs)
+        return self.fetch(after=after, **kwargs)
 
-    def fetch_group_wall(self, group, offset=0, count=None, own=False, after=None):
-        # TODO: проверить новый метод для получения постов со стены http://vk.com/developers.php?p=wall.get
+    def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
+        '''
+        Old method via parser
+        '''
         post_data = {
             'al':1,
             'offset': offset,
@@ -81,29 +121,56 @@ class PostRemoteManager(VkontakteManager):
         else:
             return group.wall_posts.all()
 
-class CommentRemoteManager(VkontakteManager):
+class CommentRemoteManager(VkontakteWallManager):
 
-    @fetch_all(return_all=lambda post,*a,**k: post.wall_comments.all())
-    def fetch_user_post(self, post, offset=0, count=None, **kwargs):
+    @fetch_all(return_all=lambda self,post,*a,**k: post.wall_comments.all())
+    def fetch_post(self, post, offset=0, count=None, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
+        if sort not in ['asc','desc']:
+            raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
+        if sort == 'asc' and after:
+            raise ValueError("Attribute sort should be equal to 'desc' with defined `after` attribute")
 
+        # owner_id
+        # идентификатор пользователя, на чьей стене находится запись, к которой необходимо получить комментарии. Если параметр не задан, то он считается равным идентификатору текущего пользователя.
         kwargs['owner_id'] = post.wall_owner.remote_id
+        if isinstance(post.wall_owner, Group):
+            kwargs['owner_id'] *= -1
+        # post_id
+        # идентификатор записи на стене пользователя.
         kwargs['post_id'] = post.remote_id.split('_')[1]
-        kwargs['preview_length'] = 0
-        kwargs['sort'] = 'asc'
+        # sort
+        # порядок сортировки комментариев:
+        # asc - хронологический
+        # desc - антихронологический
+        kwargs['sort'] = sort
+        # offset
+        # смещение, необходимое для выборки определенного подмножества комментариев.
         kwargs['offset'] = int(offset)
-
+        # need_likes
+        # 1 - будет возвращено дополнительное поле likes. По умолчанию поле likes не возвращается.
+        kwargs['need_likes'] = int(need_likes)
+        # count
+        # количество комментариев, которое необходимо получить (но не более 100).
         if count:
             kwargs.update({'count': count})
+        # preview_length
+        # Количество символов, по которому нужно обрезать комментарии. Укажите 0, если Вы не хотите обрезать комментарии. (по умолчанию 90). Обратите внимание, что комментарии обрезаются по словам.
+        kwargs['preview_length'] = int(preview_length)
+        # v
+        # Данный метод может возвращать разные результаты в зависимости от используемой версии. Передавайте v=4.4 для того, чтобы получать аттачи в комментариях в виде объектов, а не ссылок.
 
         kwargs['extra_fields'] = {'post_id': post.id}
 
-        log.debug('Fetching comments to post "%s" of user "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
+        log.debug('Fetching comments to post "%s" of owner "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
 
-        return self.fetch(**kwargs)
+        return self.fetch(after=after, **kwargs)
 
-    def fetch_group_post(self, post, offset=0, count=None):#, after=None, only_new=False):
+    def fetch_group_post_parser(self, post, offset=0, count=None):#, after=None, only_new=False):
+        '''
+        Old method via parser
+        '''
         post_data = {
             'al':1,
             'offset': offset,
@@ -165,16 +232,50 @@ class WallAbstractModel(VkontakteModel):
 
     # only for posts/comments from parser
     raw_html = models.TextField()
+    raw_json = fields.JSONField(default={}, null=True)
 
     @property
     def slug(self):
         return self.slug_prefix + str(self.remote_id)
+
+    def get_or_create_group_or_user(self, remote_id):
+        if remote_id > 0:
+            Model = User
+        elif remote_id < 0:
+            Model = Group
+        else:
+            raise ValueError("remote_id shouldn't be equal to 0")
+
+        return Model.objects.get_or_create(remote_id=abs(remote_id))
+
+    def update_and_get_likes(self, *args, **kwargs):
+        self.likes = self.like_users.count()
+        self.save()
+        return self.like_users.all()
+
+    @fetch_all(return_all=update_and_get_likes)
+    def fetch_likes(self, offset=0, *args, **kwargs):
+
+        kwargs['offset'] = int(offset)
+        kwargs['item_id'] = self.remote_id.split('_')[1]
+        kwargs['owner_id'] = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group):
+            kwargs['owner_id'] *= -1
+
+        ids = super(WallAbstractModel, self).fetch_likes(*args, **kwargs)
+        users = User.remote.fetch(ids=ids) if ids else []
+        for user in users:
+            self.like_users.add(user)
+
+        return users
 
 class Post(WallAbstractModel):
     class Meta:
         verbose_name = u'Сообщение Вконтакте'
         verbose_name_plural = u'Сообщения Вконтакте'
         ordering = ['wall_owner_id','-date']
+
+    likes_type = 'post'
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
@@ -251,6 +352,7 @@ class Post(WallAbstractModel):
     objects = models.Manager()
     remote = PostRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'get',
+        'getById': 'getById',
     })
 
     @property
@@ -305,35 +407,42 @@ class Post(WallAbstractModel):
         return super(Post, self).save(*args, **kwargs)
 
     def parse(self, response):
+        self.raw_json = dict(response)
 
         for field_name in ['comments','likes','reposts']:
             if field_name in response and 'count' in response[field_name]:
                 setattr(self, field_name, response.pop(field_name)['count'])
 
-        # parse over API only for user's walls
-        self.wall_owner = User.objects.get_or_create(remote_id=response.pop('to_id'))[0]
-        self.author = User.objects.get_or_create(remote_id=response.pop('from_id'))[0]
+        self.wall_owner = self.get_or_create_group_or_user(response.pop('to_id'))[0]
+        self.author = self.get_or_create_group_or_user(response.pop('from_id'))[0]
 
-        if 'attachment' in response:
-            response.pop('attachment')
+        response.pop('attachment', {})
+        for attachment in response.pop('attachments', []):
+            pass
+#            if attachment['type'] == 'poll':
+                # это можно делать только после сохранения поста, так что тольо через сигналы
+#               self.fetch_poll(attachment['poll']['poll_id'])
+
         super(Post, self).parse(response)
 
-        self.remote_id = '%s_%s' % (self.wall_owner.remote_id, self.remote_id)
+        self.remote_id = '%s%s_%s' % (('-' if self.by_group else ''), self.wall_owner.remote_id, self.remote_id)
 
     def fetch_comments(self, *args, **kwargs):
-        if self.on_group_wall:
-            return Comment.remote.fetch_group_post(post=self, *args, **kwargs)
-        elif self.on_user_wall:
-            return Comment.remote.fetch_user_post(post=self, *args, **kwargs)
+        return Comment.remote.fetch_post(post=self, *args, **kwargs)
 
-    def fetch_likes(self, offset=0):
+    def fetch_likes(self, source='api', *args, **kwargs):
+        if source == 'api':
+            return super(Post, self).fetch_likes(*args, **kwargs)
+        else:
+            return self.fetch_likes_parser(*args, **kwargs)
+
+    def fetch_likes_parser(self, offset=0):
         '''
         Update and save fields:
             * likes - count of likes
         Update relations:
             * like_users - users, who likes this post
         '''
-        # TODO: реализовать http://vk.com/developers.php?o=-1&p=likes.getList
         post_data = {
             'act': 'show',
             'al': 1,
@@ -376,7 +485,7 @@ class Post(WallAbstractModel):
             user_add=lambda user: self.like_users.add(user))
 
         if len(items) == number_on_page:
-            self.fetch_likes(offset=offset+number_on_page)
+            self.fetch_likes_parser(offset=offset+number_on_page)
         else:
             return self.like_users.all()
 
@@ -437,6 +546,7 @@ class Comment(WallAbstractModel):
         ordering = ['post','-date']
 
     remote_pk_field = 'cid'
+    likes_type = 'comment'
 
     post = models.ForeignKey(Post, verbose_name=u'Пост', related_name='wall_comments')
 
@@ -468,8 +578,9 @@ class Comment(WallAbstractModel):
     date = models.DateTimeField(u'Время комментария', db_index=True)
     text = models.TextField(u'Текст комментария')
 
-    # TODO: реализовать http://vk.com/developers.php?o=-1&p=likes.getList
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
+
+    like_users = models.ManyToManyField(User, blank=True, related_name='like_comments')
 
     objects = models.Manager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
@@ -496,6 +607,7 @@ class Comment(WallAbstractModel):
         return super(Comment, self).save(*args, **kwargs)
 
     def parse(self, response):
+        self.raw_json = response
         super(Comment, self).parse(response)
 
         if '_' not in str(self.remote_id):

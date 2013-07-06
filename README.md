@@ -32,12 +32,12 @@ Django Vkontakte Wall [![Build Status](https://travis-ci.org/ramusus/django-vkon
 
 * [wall.get](http://vk.com/developers.php?oid=-1&p=wall.get) – возвращает список записей со стены;
 * [wall.getComments](http://vk.com/developers.php?oid=-1&p=wall.getComments) – получает комментарии к записи на стене пользователя;
+* [wall.getById](http://vk.com/developers.php?oid=-1&p=wall.getById) – получает записи со стен пользователей по их идентификаторам.
+* [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
 
 В планах:
 
-* [wall.getById](http://vk.com/developers.php?oid=-1&p=wall.getById) – получает записи со стен пользователей по их идентификаторам.
 * [wall.post](http://vk.com/developers.php?oid=-1&p=wall.post) – добавляет запись на стену.
-* [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
 
 Использование парсера
 ---------------------
@@ -47,10 +47,16 @@ Django Vkontakte Wall [![Build Status](https://travis-ci.org/ramusus/django-vkon
 * Получение лайков сообщения. *
 * Получение перепостов сообщения.
 
-(*) До недавнего момента это было невозможно сделать через API.
+(*) Дублирование функционала API
 
 Примеры использования
 ---------------------
+
+### Получение сообщений по их идентификаторам
+
+    >>> from vkontakte_wall.models import Post
+    >>> Post.remote.fetch(ids=['5223304_130', '-16297716_126261'])
+    [<Post: ...>, <Post: ...>]
 
 ### Получение сообщений со стены пользователя через метод пользователя
 

@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from django.dispatch.dispatcher import Signal
 from vkontakte_api.parser import VkontakteParser, VkontakteParseError
 import re
+
+post_parsed = Signal(providing_args=['instance', 'raw_html'])
+comment_parsed = Signal(providing_args=['instance', 'raw_html'])
 
 def get_object_by_slug(slug):
     from vkontakte_users.models import User
@@ -73,6 +77,8 @@ class VkontakteWallParser(VkontakteParser):
                 #reply:1
 
         instance.fetched = datetime.now()
+
+        comment_parsed.send(sender=Comment, instance=instance, raw_html=str(content))
         return instance
 
     def parse_post(self, content, wall_owner):
@@ -152,4 +158,5 @@ class VkontakteWallParser(VkontakteParser):
         if copy_text:
             instance.copy_text = copy_text.text
 
+        post_parsed.send(sender=Post, instance=instance, raw_html=str(content))
         return instance

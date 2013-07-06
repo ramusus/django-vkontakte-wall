@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.test import TestCase
 from models import Post, Comment
-from factories import PostFactory, UserFactory, GroupFactory
+from factories import PostFactory, UserFactory, GroupFactory, CommentFactory
 from vkontakte_users.models import User
 from datetime import datetime
 import simplejson as json
@@ -12,10 +12,18 @@ POST_ID = '5223304_130'
 GROUP_ID = 16297716
 GROUP_SCREEN_NAME = 'cocacola'
 GROUP_POST_ID = '-16297716_126261'
+GROUP_COMMENT_ID = '-16297716_126262'
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
 
 class VkontakteWallTest(TestCase):
+
+    def test_fetch_posts(self, *args, **kwargs):
+
+        self.assertTrue(Post.objects.count() == 0)
+
+        posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
+        self.assertTrue(len(posts) == Post.objects.count() == 2)
 
     def test_fetch_user_wall(self):
 
@@ -40,15 +48,14 @@ class VkontakteWallTest(TestCase):
 
         posts = group.fetch_posts(count=10)
 
-        self.assertTrue(len(posts), 10)
-        self.assertEqual(Post.objects.count(), 10)
         self.assertEqual(posts[0].wall_owner, group)
+        self.assertTrue(len(posts) == Post.objects.count() == 10)
         self.assertTrue(isinstance(posts[0].date, datetime))
         self.assertTrue(posts[0].likes + posts[1].likes > 0)
         self.assertTrue(posts[0].comments + posts[1].comments > 0)
         self.assertTrue(len(posts[0].text) > 0)
 
-        # testing after parameter
+        # testing `after` parameter
         after = Post.objects.order_by('date')[0].date
 
         Post.objects.all().delete()
@@ -56,7 +63,16 @@ class VkontakteWallTest(TestCase):
 
         posts = group.fetch_posts(after=after)
 
-        self.assertTrue(len(posts), 10)
+        self.assertEqual(len(posts), 10)
+        self.assertEqual(Post.objects.count(), 10)
+
+        # testing `after` and `all` parameters
+        Post.objects.all().delete()
+        self.assertEqual(Post.objects.count(), 0)
+
+        posts = group.fetch_posts(after=after, all=True)
+
+        self.assertEqual(len(posts), 10)
         self.assertEqual(Post.objects.count(), 10)
 
     def test_fetch_group_open_wall(self):
@@ -67,7 +83,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(User.objects.count(), 0)
 
         count = 10
-        posts = group.fetch_posts(own=0, count=count)
+        posts = group.fetch_posts(own=0, count=count, extended=1)
 
         self.assertEqual(len(posts), count)
         self.assertEqual(Post.objects.count(), count)
@@ -96,12 +112,27 @@ class VkontakteWallTest(TestCase):
         post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
         self.assertEqual(Comment.objects.count(), 0)
 
-        comments = post.fetch_comments()
+        comments = post.fetch_comments(sort='desc', count=90)
 
-        self.assertTrue(len(comments) > 0)
-        self.assertEqual(Comment.objects.count(), len(comments))
+        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
         self.assertEqual(comments[0].post, post)
-        self.assertEqual(post.comments, len(comments))
+        self.assertEqual(comments[0].wall_owner, group)
+
+        # testing `after` parameter
+        after = Comment.objects.order_by('date')[0].date
+
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = post.fetch_comments(sort='desc', after=after, count=100)
+        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
+
+        # testing `after` and `all` parameters
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = post.fetch_comments(sort='desc', after=after, all=True)
+        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
 
 #    def test_fetch_group_post_comments_after(self):
 #
@@ -124,19 +155,39 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.reposts, 0)
         self.assertEqual(post.repost_users.count(), 0)
         post.fetch_reposts()
-        self.assertTrue(post.reposts >= 38)
-        self.assertTrue(post.repost_users.count() >= 38)
+        self.assertTrue(post.reposts >= 30)
+        self.assertTrue(post.repost_users.count() >= 30)
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_post_likes(self, *args, **kwargs):
 
-        post = PostFactory.create(remote_id=GROUP_POST_ID)
+        group = GroupFactory.create(remote_id=GROUP_ID)
+        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
 
-        self.assertEqual(post.likes, 0)
-        self.assertEqual(post.like_users.count(), 0)
-        post.fetch_likes()
-        self.assertTrue(post.likes > 120)
-        self.assertTrue(post.like_users.count() > 120)
+        self.assertTrue(post.likes == post.like_users.count() == 0)
+
+        post.fetch_likes(source='parser')
+        self.assertTrue(post.likes == post.like_users.count() > 120)
+
+        post.like_users.all().delete()
+        post.likes = 0
+        post.save()
+        self.assertTrue(post.likes == post.like_users.count() == 0)
+
+        post.fetch_likes(all=True)
+        self.assertTrue(post.likes == post.like_users.count() > 120)
+
+#    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
+    def test_fetch_comment_likes(self, *args, **kwargs):
+
+        group = GroupFactory.create(remote_id=GROUP_ID)
+        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
+        comment = CommentFactory.create(remote_id=GROUP_COMMENT_ID, post=post, wall_owner=group)
+
+        self.assertTrue(comment.likes == comment.like_users.count() == 0)
+
+        comment.fetch_likes(all=True)
+        self.assertTrue(comment.likes == comment.like_users.count() >= 1)
 
     def test_parse_post(self):
 
