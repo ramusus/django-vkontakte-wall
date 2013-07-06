@@ -26,9 +26,8 @@ class Migration(SchemaMigration):
                       self.gf('annoying.fields.JSONField')(default={}, null=True),
                       keep_default=False)
 
-
-        # Changing field 'Post.copy_post'
-        db.alter_column('vkontakte_wall_post', 'copy_post_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['vkontakte_wall.Post'], null=True))
+#         # Changing field 'Post.copy_post'
+#         db.alter_column('vkontakte_wall_post', 'copy_post_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['vkontakte_wall.Post'], null=True))
 
     def backwards(self, orm):
         # Deleting field 'Comment.raw_json'

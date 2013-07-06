@@ -23,12 +23,15 @@ class VkontakteWallManager(VkontakteManager):
     def fetch(self, after=None, *args, **kwargs):
         '''
         Retrieve and save object to local DB
+        Return queryset with respect to after parameter, excluding all posts|comments before
         '''
-        instances = []
+        instances = self.model.objects.none()
+
         for instance in self.get(*args, **kwargs):
             if after and after > instance.date:
                 break
-            instances += [self.get_or_create_from_instance(instance)]
+            instance = self.get_or_create_from_instance(instance)
+            instances |= self.model.objects.filter(id=instance.id)
 
         return instances
 
