@@ -58,7 +58,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         else:
             return super(PostRemoteManager, self).parse_response_dict(resource, extra_fields)
 
-    @fetch_all
+    @fetch_all(default_count=100)
     def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, after=None, **kwargs):
 
         if filter not in ['owner','others','all']:
@@ -70,8 +70,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         kwargs['filter'] = filter
         kwargs['extended'] = int(extended)
         kwargs['offset'] = int(offset)
-        if count:
-            kwargs.update({'count': count})
+        kwargs.update({'count': count})
         if isinstance(owner, Group):
             kwargs['owner_id'] *= -1
 
@@ -126,7 +125,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
 class CommentRemoteManager(VkontakteWallManager):
 
-    @fetch_all
+    @fetch_all(default_count=100)
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
@@ -156,8 +155,7 @@ class CommentRemoteManager(VkontakteWallManager):
         kwargs['need_likes'] = int(need_likes)
         # count
         # количество комментариев, которое необходимо получить (но не более 100).
-        if count:
-            kwargs.update({'count': count})
+        kwargs.update({'count': count})
         # preview_length
         # Количество символов, по которому нужно обрезать комментарии. Укажите 0, если Вы не хотите обрезать комментарии. (по умолчанию 90). Обратите внимание, что комментарии обрезаются по словам.
         kwargs['preview_length'] = int(preview_length)
@@ -180,7 +178,7 @@ class CommentRemoteManager(VkontakteWallManager):
             'part': 1,
         }
 
-        log.debug('Fetching comments to post "%s" of group "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
+        log.debug('Fetching comments to post "%s" of owner "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
 
         parser = VkontakteWallParser().request('/wall%s' % (post.remote_id), data=post_data)
 
@@ -256,7 +254,7 @@ class WallAbstractModel(VkontakteModel):
         self.save()
         return self.like_users.all()
 
-    @fetch_all(return_all=update_and_get_likes)
+    @fetch_all(return_all=update_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
         kwargs['offset'] = int(offset)
@@ -264,6 +262,8 @@ class WallAbstractModel(VkontakteModel):
         kwargs['owner_id'] = self.wall_owner.remote_id
         if isinstance(self.wall_owner, Group):
             kwargs['owner_id'] *= -1
+
+        log.debug('Fetching likes of text "%s" of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
         ids = super(WallAbstractModel, self).fetch_likes(*args, **kwargs)
         users = User.remote.fetch(ids=ids) if ids else []
@@ -459,7 +459,7 @@ class Post(WallAbstractModel):
             number_on_page = 60
             post_data['offset'] = offset
 
-        log.debug('Fetching likes of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+        log.debug('Fetching likes of post "%s" of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
         parser = VkontakteWallParser().request('/wkview.php', data=post_data)
 
@@ -512,7 +512,7 @@ class Post(WallAbstractModel):
             number_on_page = 20
             post_data['offset'] = offset
 
-        log.debug('Fetching reposts of post "%s" of group "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+        log.debug('Fetching reposts of post "%s" of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
         parser = VkontakteWallParser().request('/wkview.php', data=post_data)
         if offset == 0:

@@ -25,6 +25,24 @@ class VkontakteWallTest(TestCase):
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
         self.assertTrue(len(posts) == Post.objects.count() == 2)
 
+    def fetch_post_comments_recursive_calls_ammount_side_effect(after, *args, **kwargs):
+        comments_count = 100 if kwargs['offset'] == 0 else 6
+        comments = [CommentFactory.create() for i in range(comments_count)]
+        return Comment.objects.filter(pk__in=[comment.pk for comment in comments])
+
+    @mock.patch('vkontakte_wall.models.Comment.remote.fetch', side_effect=fetch_post_comments_recursive_calls_ammount_side_effect)
+    def test_fetch_post_comments_recursive_calls_ammount(self, fetch_method, *args, **kwargs):
+
+        group = GroupFactory.create(remote_id=GROUP_ID)
+        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
+
+        comments = post.fetch_comments(sort='desc', all=True)
+        self.assertTrue(len(comments) > 105)
+        self.assertEqual(fetch_method.called, True)
+        self.assertEqual(fetch_method.call_count, 2)
+        self.assertEqual(fetch_method.call_args_list[0][1]['offset'], 0)
+        self.assertEqual(fetch_method.call_args_list[1][1]['offset'], 100)
+
     def test_fetch_user_wall(self):
 
         owner = UserFactory.create(remote_id=USER_ID)
