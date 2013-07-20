@@ -25,7 +25,7 @@ class VkontakteWallTest(TestCase):
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
         self.assertTrue(len(posts) == Post.objects.count() == 2)
 
-    def fetch_post_comments_recursive_calls_ammount_side_effect(after, *args, **kwargs):
+    def fetch_post_comments_recursive_calls_ammount_side_effect(*args, **kwargs):
         comments_count = 100 if kwargs['offset'] == 0 else 6
         comments = [CommentFactory.create() for i in range(comments_count)]
         return Comment.objects.filter(pk__in=[comment.pk for comment in comments])

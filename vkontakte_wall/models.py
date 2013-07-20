@@ -19,21 +19,7 @@ log = logging.getLogger('vkontakte_wall')
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 class VkontakteWallManager(VkontakteManager):
-
-    def fetch(self, after=None, *args, **kwargs):
-        '''
-        Retrieve and save object to local DB
-        Return queryset with respect to after parameter, excluding all posts|comments before
-        '''
-        instances = self.model.objects.none()
-
-        for instance in self.get(*args, **kwargs):
-            if after and after > instance.date:
-                break
-            instance = self.get_or_create_from_instance(instance)
-            instances |= self.model.objects.filter(id=instance.id)
-
-        return instances
+    pass
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
 
@@ -73,10 +59,12 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         kwargs.update({'count': count})
         if isinstance(owner, Group):
             kwargs['owner_id'] *= -1
+        if after:
+            kwargs['_after'] = after
 
         log.debug('Fetching post of owner "%s", offset %d' % (owner, offset))
 
-        return self.fetch(after=after, **kwargs)
+        return self.fetch(**kwargs)
 
     def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
         '''
@@ -163,10 +151,12 @@ class CommentRemoteManager(VkontakteWallManager):
         # Данный метод может возвращать разные результаты в зависимости от используемой версии. Передавайте v=4.4 для того, чтобы получать аттачи в комментариях в виде объектов, а не ссылок.
 
         kwargs['extra_fields'] = {'post_id': post.id}
+        if after:
+            kwargs['_after'] = after
 
         log.debug('Fetching comments to post "%s" of owner "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
 
-        return self.fetch(after=after, **kwargs)
+        return self.fetch(**kwargs)
 
     def fetch_group_post_parser(self, post, offset=0, count=None):#, after=None, only_new=False):
         '''
