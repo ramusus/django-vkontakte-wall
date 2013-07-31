@@ -293,8 +293,8 @@ class Post(WallAbstractModel):
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
     reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0)
 
-    like_users = models.ManyToManyField(User, blank=True, related_name='like_posts')
-    repost_users = models.ManyToManyField(User, blank=True, related_name='repost_posts')
+    like_users = models.ManyToManyField(User, related_name='like_posts')
+    repost_users = models.ManyToManyField(User, related_name='repost_posts')
 
     #{u'photo': {u'access_key': u'5f19dfdc36a1852824',
     #u'aid': -7,
@@ -573,7 +573,7 @@ class Comment(WallAbstractModel):
 
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
 
-    like_users = models.ManyToManyField(User, blank=True, related_name='like_comments')
+    like_users = models.ManyToManyField(User, related_name='like_comments')
 
     objects = models.Manager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
