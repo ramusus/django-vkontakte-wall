@@ -171,8 +171,8 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.reposts, 0)
         self.assertEqual(post.repost_users.count(), 0)
         post.fetch_reposts()
-        self.assertTrue(post.reposts >= 30)
-        self.assertTrue(post.repost_users.count() >= 30)
+        self.assertTrue(post.reposts >= 20)
+        self.assertTrue(post.repost_users.count() >= 20)
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_post_likes(self, *args, **kwargs):

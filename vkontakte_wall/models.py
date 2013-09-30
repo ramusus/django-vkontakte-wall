@@ -46,7 +46,6 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
     @fetch_all(default_count=100)
     def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, after=None, **kwargs):
-
         if filter not in ['owner','others','all']:
             raise ValueError("Attribute 'fiter' has illegal value '%s'" % filter)
         if count > 100:
@@ -62,7 +61,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         if after:
             kwargs['_after'] = after
 
-        log.debug('Fetching post of owner "%s", offset %d' % (owner, offset))
+        log.debug('Fetching posts of owner "%s", offset %d' % (owner, offset))
 
         return self.fetch(**kwargs)
 
