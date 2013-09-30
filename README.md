@@ -1,5 +1,7 @@
-Django Vkontakte Wall [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-wall/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-wall)
+Django Vkontakte Wall
 =====================
+
+[![PyPI version](https://badge.fury.io/py/django-vkontakte-wall.png)](http://badge.fury.io/py/django-vkontakte-wall) [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-wall.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-wall) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-wall/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-wall)
 
 Приложение позволяет взаимодействовать со стенами Вконтакте, сообщениями и комментариями на них через Вконтакте API и парсер используя стандартные модели Django
 
@@ -13,8 +15,11 @@ Django Vkontakte Wall [![Build Status](https://travis-ci.org/ramusus/django-vkon
     INSTALLED_APPS = (
         ...
         'oauth_tokens',
+        'taggit',
         'vkontakte_api',
+        'vkontakte_places',
         'vkontakte_users',
+        'vkontakte_groups',
         'vkontakte_wall',
     )
 
