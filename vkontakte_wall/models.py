@@ -238,12 +238,12 @@ class WallAbstractModel(VkontakteModel):
 
         return Model.objects.get_or_create(remote_id=abs(remote_id))
 
-    def update_and_get_likes(self, *args, **kwargs):
+    def update_count_and_get_likes(self, *args, **kwargs):
         self.likes = self.like_users.count()
         self.save()
         return self.like_users.all()
 
-    @fetch_all(return_all=update_and_get_likes, default_count=1000)
+    @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
         kwargs['offset'] = int(offset)
@@ -481,8 +481,58 @@ class Post(WallAbstractModel):
         else:
             return self.like_users.all()
 
-    def fetch_reposts(self, offset=0):
+    def fetch_reposts(self, source='api', *args, **kwargs):
+        if source == 'api':
+            return self.fetch_reposts_api(*args, **kwargs)
+        else:
+            return self.fetch_reposts_parser(*args, **kwargs)
+
+    def update_count_and_get_reposts(self, *args, **kwargs):
+        self.reposts = self.repost_users.count()
+        self.save()
+        return self.repost_users.all()
+
+    @fetch_all(return_all=update_count_and_get_reposts, default_count=1000)
+    def fetch_reposts_api(self, offset=0, count=1000, *args, **kwargs):
+        if count > 1000:
+            raise ValueError("Parameter 'count' can not be more than 1000")
+
+        # owner_id
+        # идентификатор пользователя или сообщества, на стене которого находится запись. Если параметр не задан, то он считается равным идентификатору текущего пользователя.
+        # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
+        kwargs['owner_id'] = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group):
+            kwargs['owner_id'] *= -1
+        # post_id
+        # идентификатор записи на стене.
+        kwargs['post_id'] = self.remote_id.split('_')[1]
+        # offset
+        # смещение, необходимое для выборки определенного подмножества записей.
+        kwargs['offset'] = int(offset)
+        # count
+        # количество записей, которое необходимо получить.
+        # положительное число, по умолчанию 20, максимальное значение 100
+        kwargs['count'] = int(count)
+
+        log.debug('Fetching reposts of post ID=%s of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+
+        response = api_call('wall.getReposts', **kwargs)
+        new_users_ids = []
+        for user in response['profiles']:
+            user_instance, created = User.objects.get_or_create(remote_id=user['uid'])
+            if created:
+                new_users_ids += [user['uid']]
+            self.repost_users.add(user_instance)
+
+        # update info of new users
+        if new_users_ids:
+            User.remote.fetch(ids=new_users_ids)
+
+        return self.repost_users.all()
+
+    def fetch_reposts_parser(self, offset=0):
         '''
+        OLD method via parser, may works incorrect
         Update and save fields:
             * reposts - count of reposts
         Update relations
