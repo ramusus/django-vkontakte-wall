@@ -255,7 +255,7 @@ class WallAbstractModel(VkontakteModel):
         log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.wall_owner, offset))
 
         ids = super(WallAbstractModel, self).fetch_likes(*args, **kwargs)
-        users = User.remote.fetch(ids=ids) if ids else []
+        users = User.remote.fetch(ids=ids) if ids else User.objects.none()
         for user in users:
             self.like_users.add(user)
 
