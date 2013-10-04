@@ -35,14 +35,21 @@ Django Vkontakte Wall
 Покрытие методов API
 --------------------
 
-* [wall.get](http://vk.com/developers.php?oid=-1&p=wall.get) – возвращает список записей со стены;
-* [wall.getComments](http://vk.com/developers.php?oid=-1&p=wall.getComments) – получает комментарии к записи на стене пользователя;
-* [wall.getById](http://vk.com/developers.php?oid=-1&p=wall.getById) – получает записи со стен пользователей по их идентификаторам.
-* [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
+* [wall.get](http://vk.com/dev/wall.get) – возвращает список записей со стены;
+* [wall.getById](http://vk.com/dev/wall.getById) – получает записи со стен пользователей по их идентификаторам;
+* [wall.getLikes](http://vk.com/dev/wall.getLikes) – получает информацию о пользователях которым нравится данная запись;
+* [wall.post](http://vk.com/dev/wall.post) – публикует новую запись на своей или чужой стене; 
+* [wall.edit](http://vk.com/dev/wall.edit) – редактирует запись на стене;
+* [wall.delete](http://vk.com/dev/wall.delete) – удаляет запись со стены;
+* [wall.restore](http://vk.com/dev/wall.restore) – восстанавливает удаленную запись на стене пользователя;
+* [wall.getComments](http://vk.com/dev/wall.getComments) – получает комментарии к записи на стене пользователя;
+* [wall.addComments](http://vk.com/dev/wall.addComments) – добавляет комментарий к записи на стене пользователя или сообщества;
+* [wall.editComments](http://vk.com/dev/wall.editComments) – редактирует комментарий на стене пользователя или сообщества;
+* [wall.deleteComments](http://vk.com/dev/wall.deleteComments) – удаляет комментарий текущего пользователя к записи на своей или чужой стене;
+* [wall.restoreComments](http://vk.com/dev/wall.restoreComments) – восстанавливает комментарий текущего пользователя к записи на своей или чужой стене;
 
 В планах:
 
-* [wall.post](http://vk.com/developers.php?oid=-1&p=wall.post) – добавляет запись на стену.
 
 Использование парсера
 ---------------------
@@ -118,3 +125,69 @@ Django Vkontakte Wall
     >>> post = user.wall_posts.all()[0]
     >>> Comment.remote.fetch_user_post(post=post)
     [<Comment: ...>, <Comment: ...>, <Comment: ...>, '...(remaining elements truncated)...']
+
+
+Использование API
+---------------------
+
+### Публикация записи на стене
+
+       >>> param = {'owner_id': OWNER_ID, 'friends_only': 0, 'message': 'message'}
+       >>> post = Post.remote.create(**param)
+       <Post:...>
+       >>> print post.message
+       'message'
+    
+
+### Редактирование опубликованной записи
+
+        >>> edited_message = 'Edited message'
+        >>> post_edited = post.edit(message=edited_message)
+        >>> post_edited.text
+        'Edited message'
+
+### Удаление опупбликованной записи
+
+       >>> post.delete()  # Запись не удаляется из БД, 
+       >>> post.archived  
+       True               # вместо этого аттрибуту archived присваивается True
+
+### Востановление удаленной записи
+
+       >>> post.restore()   
+       >>> post.archived  
+       False               
+
+
+### Публикация коментария к записи на стене
+
+        >>> text = 'Comment message'
+        >>> commpent_param = { 'owner_id': OWNER_ID, 'post_id': post.remote_id.split('_')[-1], 'text': text}
+        >>> test_comment = Comment.remote.create(**commpent_param)
+        >>> test_comment
+        <Comment:...>
+        >>> test_comment.text
+        'Comment message'
+    
+    
+
+### Редактирование опубликованного комментария
+
+        >>> edited_message = 'Edited comment message'
+        >>> comment1 = test_comment.edit(message=edited_message)
+        >>> comment1.text
+        'Edited comment message'
+
+### Удаление опупбликованного комментария
+
+       >>> test_comment.delete()  # Запись не удаляется из БД, 
+       >>> test_comment.archived  
+       True               # вместо этого аттрибуту archived присваивается True
+
+### Востановление удаленного комментария
+
+       >>> test_comment.restore()   
+       >>> test_comment.archived  
+       False               
+
+
