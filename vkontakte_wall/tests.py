@@ -268,7 +268,7 @@ class VkontakteWallTest(TestCase):
 #        self.assertEqual(instance.reply_to.remote_id, '...2505')
 
     def test_post_crud_create(self):
-        objects_to_delete = []
+        created_posts = []
         message = 'Test message'
         param = {
             'owner_id': OWNER_ID,
@@ -278,27 +278,68 @@ class VkontakteWallTest(TestCase):
 
         # Create
         post = Post.remote.create(**param)
-        objects_to_delete.append(post)
+        created_posts.append(post)
 
         self.assertTrue(post.remote_id > 0)
         self.assertEqual(post.text, param['message'])
 
-        # Пока неясно, как редактитовать и удалять записи
-        # ошибка доступа
-
         # Update
         edited_message = 'Edited message'
-        post = Post.remote.edit(post, message=edited_message)
-        self.assertEqual(post.text, edited_message)
+        post_edited = post.edit(message=edited_message)
+        self.assertEqual(post_edited.text, edited_message)
 
         # Delete
-        for post in objects_to_delete:
-            Post.remote.delete(post)
+        for post in created_posts:
+            post.delete()
             #post1 = Post.objects.get(id=post.id)
             #self.assertTrue(post1.archive)
 
         # Restore
-        for post in objects_to_delete:
-            Post.remote.restore(post)
+        for post in created_posts:
+            post.restore()
             #post1 = Post.objects.get(id=post.id)
             #self.assertFalse(post1.archived)
+
+        # remove all posts
+        for post in created_posts:
+            post.delete()
+
+    def test_comment_crud_create(self):
+        message = 'Test message'
+        param = {
+            'owner_id': OWNER_ID,
+            'frends_only': 0,
+            'message': message,
+        }
+        post = Post.remote.create(**param)
+
+        # Create
+        text = 'Comment message'
+        commpent_param = {
+            'owner_id': OWNER_ID,
+            'post_id': post.remote_id.split('_')[-1],
+            'text': text,
+        }
+        test_comment = Comment.remote.create(**commpent_param)
+
+        self.assertTrue(test_comment.remote_id > 0)
+        self.assertEqual(test_comment.text, text)
+
+        # Update
+        edited_message = 'Edited comment message'
+        comment1 = test_comment.edit(message=edited_message)
+        self.assertEqual(comment1.text, edited_message)
+
+        # Delete
+        test_comment.delete()
+        comment1 = Comment.objects.get(id=test_comment.id)
+        print dir(comment1)
+        #self.assertTrue(comment1.archive)
+
+        # Restore
+        test_comment.restore()
+        #comment1 = Comment.objects.get(id=test_comment.id)
+        #self.assertFalse(comment1.archive)
+
+        # remove template post
+        post.delete()

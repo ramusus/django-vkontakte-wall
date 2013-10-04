@@ -21,67 +21,23 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 class VkontakteWallManager(VkontakteManager):
     def create(self, *args, **kwargs):
-        remote_id = super(VkontakteWallManager, self).create(*args, **kwargs)['post_id']
-        if remote_id:
-            kwargs['remote_id'] = remote_id
-            return self.create_local(*args, **kwargs)
-        return None
-
-    def create_local(self, *args, **kwargs):
-        id = "%(owner_id)s_%(remote_id)s" % kwargs
-        posts = Post.remote.fetch(ids=[id])
-        if posts:
-            posts[0].save()
-            return posts[0]
-        return None
-
-    def edit(self, post, *args, **kwargs):
-        if 'owner_id' not in kwargs and 'post_id' not in kwargs:
-            owner_id, post_id = post.remote_id.split('_')
-            kwargs['owner_id'] = '-%s' % owner_id
-            kwargs['post_id'] = post_id
-        response = super(VkontakteWallManager, self).edit(*args, **kwargs)
+        response = super(VkontakteWallManager, self).create(*args, **kwargs)
         if response:
-            return self.edit_local(post, *args, **kwargs)
-        print post
+            kwargs.update(response)
+            return self.model().create(**kwargs)
+        return None
+    #    if remote_id:
+    #        kwargs['remote_id'] = remote_id
+    #        return self.create_local(*args, **kwargs)
+    #    return None
 
-    def edit_local(self, post, *args, **kwargs):
-        id = '-%s' % post.remote_id
-        posts = Post.remote.fetch(ids=[id])
-        if posts:
-            return posts[0]
-        return post
-
-    def delete(self, post):
-        owner_id, post_id = post.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'post_id': post_id,
-        }
-        is_deleted = super(VkontakteWallManager, self).delete(**kwargs)
-        if is_deleted:
-            return self.delete_loacal(post)
-        return post
-
-    def delete_loacal(self, post, *args, **kwargs):
-        #post.archived = True
-        #post.save()
-        return post
-
-    def restore(self, post, *args, **kwargs):
-        owner_id, post_id = post.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'post_id': post_id,
-        }
-        response = super(VkontakteWallManager, self).restore(**kwargs)
-        if response:
-            self.restore_local(post, *args, **kwargs)
-
-    def restore_local(self, post, *args, **kwargs):
-        #post.archived = False
-        #post.save()
-        return post
+#    def create_local(self, *args, **kwargs):
+#        id = "%(owner_id)s_%(remote_id)s" % kwargs
+#        posts = Post.remote.fetch(ids=[id])
+#        if posts:
+#            posts[0].save()
+#            return posts[0]
+#        return None
 
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
@@ -175,6 +131,19 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
 
 class CommentRemoteManager(VkontakteWallManager):
+
+    def fetch(self, ids=None, *args, **kwargs):
+        '''
+        Retrieve and save object to local DB
+        '''
+        post_remote_id = "%(owner_id)s_%(post_id)s" % kwargs
+        post_remote_id = post_remote_id.replace('-', '')
+        post = Post.objects.get(remote_id=post_remote_id)
+        kwargs['extra_fields'] = {'post_id': post.id}
+
+        return [comment for comment \
+                    in super(CommentRemoteManager, self).fetch(*args, **kwargs)\
+                    if ids is None or comment.remote_id in ids]
 
     @fetch_all(default_count=100)
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
@@ -284,6 +253,7 @@ class WallAbstractModel(VkontakteModel):
     slug_prefix = 'wall'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+    archived = models.BooleanField(u'В архиве', default=False)
 
     # only for posts/comments from parser
     raw_html = models.TextField()
@@ -437,6 +407,15 @@ class Post(WallAbstractModel):
     def __unicode__(self):
         return '%s: %s' % (unicode(self.wall_owner), self.text)
 
+    def create(self, *args, **kwargs):
+        if 'post_id' in kwargs:
+            id = "%(owner_id)s_%(post_id)s" % kwargs
+            wall_objs = Post.remote.fetch(ids=[id], **kwargs)
+            if wall_objs:
+                wall_objs[0].save()
+                return wall_objs[0]
+        return None
+
     def save(self, *args, **kwargs):
         # check strings for good encoding
         # there is problems to save users with bad encoded activity strings like user ID=88798245
@@ -467,6 +446,42 @@ class Post(WallAbstractModel):
             self.copy_owner.save()
 
         return super(Post, self).save(*args, **kwargs)
+
+    def edit(self, *args, **kwargs):
+        owner_id, post_id = self.remote_id.split('_')
+        kwargs['owner_id'] = '-%s' % owner_id
+        kwargs['post_id'] = post_id
+        if Post.remote.edit(*args, **kwargs):
+            id = '-%s' % self.remote_id
+            posts = Post.remote.fetch(ids=[id])
+            if posts:
+                return posts[0]
+        return self
+
+    def delete(self):
+        owner_id, post_id = self.remote_id.split('_')
+        kwargs = {
+            'owner_id': '-' + owner_id,
+            'post_id': post_id,
+        }
+        is_deleted = Post.remote.delete(**kwargs)
+        if is_deleted:
+            #self..archived = True
+            #self..save()
+            pass
+
+    def restore(self, *args, **kwargs):
+        owner_id, post_id = self.remote_id.split('_')
+        kwargs = {
+            'owner_id': '-' + owner_id,
+            'post_id': post_id,
+        }
+        response = Post.remote.restore(**kwargs)
+        if response:
+            #self.archived = False
+            #self.save()
+            pass
+        return self
 
     def parse(self, response):
         self.raw_json = dict(response)
@@ -648,7 +663,21 @@ class Comment(WallAbstractModel):
     objects = models.Manager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'getComments',
+        'create': 'addComment',
+        'edit': 'editComment',
+        'delete': 'deleteComment',
+        'restore': 'restoreComment',
     })
+
+    def create(self, *args, **kwargs):
+        if 'cid' in kwargs:
+            id = "%(owner_id)s_%(cid)s" % kwargs
+            id = id.replace('-', '')
+            wall_objs = Comment.remote.fetch(ids=[id], **kwargs)
+            if wall_objs:
+                wall_objs[0].save()
+                return wall_objs[0]
+        return None
 
     def save(self, *args, **kwargs):
         self.wall_owner = self.post.wall_owner
@@ -668,6 +697,44 @@ class Comment(WallAbstractModel):
             raise ValueError("'reply_for' field should be Group or User instance, not %s" % self.reply_for_content_type)
 
         return super(Comment, self).save(*args, **kwargs)
+
+    def edit(self, *args, **kwargs):
+        owner_id, comment_id = self.remote_id.split('_')
+
+        kwargs['owner_id'] = '-%s' % owner_id
+        kwargs['post_id'] = self.post.remote_id.split('_')[-1]
+        kwargs['comment_id'] = comment_id
+
+        if Comment.remote.edit(*args, **kwargs):
+            posts = Comment.remote.fetch(ids=[self.remote_id], **kwargs)
+            if posts:
+                return posts[0]
+        return self
+
+    def delete(self):
+        owner_id, comment_id = self.remote_id.split('_')
+        kwargs = {
+            'owner_id': '-' + owner_id,
+            'comment_id': comment_id,
+        }
+        is_deleted = Comment.remote.delete(**kwargs)
+        if is_deleted:
+            #self..archived = True
+            #self..save()
+            pass
+
+    def restore(self, *args, **kwargs):
+        owner_id, comment_id = self.remote_id.split('_')
+        kwargs = {
+            'owner_id': '-' + owner_id,
+            'comment_id': comment_id,
+        }
+        response = Comment.remote.restore(**kwargs)
+        if response:
+            #self.archived = False
+            #self.save()
+            pass
+        return self
 
     def parse(self, response):
         self.raw_json = response
