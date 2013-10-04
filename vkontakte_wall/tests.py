@@ -15,6 +15,8 @@ GROUP_POST_ID = '-16297716_126261'
 GROUP_COMMENT_ID = '-16297716_126262'
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
+OWNER_ID = '-59154616'
+
 
 class VkontakteWallTest(TestCase):
 
@@ -264,3 +266,39 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.remote_id, '1_2507')
         self.assertEqual(instance.reply_for.remote_id, 16271479)
 #        self.assertEqual(instance.reply_to.remote_id, '...2505')
+
+    def test_post_crud_create(self):
+        objects_to_delete = []
+        message = 'Test message'
+        param = {
+            'owner_id': OWNER_ID,
+            'frends_only': 0,
+            'message': message,
+        }
+
+        # Create
+        post = Post.remote.create(**param)
+        objects_to_delete.append(post)
+
+        self.assertTrue(post.remote_id > 0)
+        self.assertEqual(post.text, param['message'])
+
+        # Пока неясно, как редактитовать и удалять записи
+        # ошибка доступа
+
+        # Update
+        edited_message = 'Edited message'
+        post = Post.remote.edit(post, message=edited_message)
+        self.assertEqual(post.text, edited_message)
+
+        # Delete
+        for post in objects_to_delete:
+            Post.remote.delete(post)
+            #post1 = Post.objects.get(id=post.id)
+            #self.assertTrue(post1.archive)
+
+        # Restore
+        for post in objects_to_delete:
+            Post.remote.restore(post)
+            #post1 = Post.objects.get(id=post.id)
+            #self.assertFalse(post1.archived)
