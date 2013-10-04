@@ -272,7 +272,7 @@ class VkontakteWallTest(TestCase):
         message = 'Test message'
         param = {
             'owner_id': OWNER_ID,
-            'frends_only': 0,
+            'friends_only': 0,
             'message': message,
         }
 
@@ -291,14 +291,14 @@ class VkontakteWallTest(TestCase):
         # Delete
         for post in created_posts:
             post.delete()
-            #post1 = Post.objects.get(id=post.id)
-            #self.assertTrue(post1.archive)
+            post1 = Post.objects.get(id=post.id)
+            self.assertTrue(post1.archived)
 
         # Restore
         for post in created_posts:
             post.restore()
-            #post1 = Post.objects.get(id=post.id)
-            #self.assertFalse(post1.archived)
+            post1 = Post.objects.get(id=post.id)
+            self.assertFalse(post1.archived)
 
         # remove all posts
         for post in created_posts:
@@ -308,7 +308,7 @@ class VkontakteWallTest(TestCase):
         message = 'Test message'
         param = {
             'owner_id': OWNER_ID,
-            'frends_only': 0,
+            'friends_only': 0,
             'message': message,
         }
         post = Post.remote.create(**param)
@@ -333,13 +333,12 @@ class VkontakteWallTest(TestCase):
         # Delete
         test_comment.delete()
         comment1 = Comment.objects.get(id=test_comment.id)
-        print dir(comment1)
-        #self.assertTrue(comment1.archive)
+        self.assertTrue(comment1.archived)
 
         # Restore
         test_comment.restore()
-        #comment1 = Comment.objects.get(id=test_comment.id)
-        #self.assertFalse(comment1.archive)
+        comment1 = Comment.objects.get(id=test_comment.id)
+        self.assertFalse(comment1.archived)
 
         # remove template post
         post.delete()

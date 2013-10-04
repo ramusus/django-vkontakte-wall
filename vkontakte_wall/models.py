@@ -26,18 +26,6 @@ class VkontakteWallManager(VkontakteManager):
             kwargs.update(response)
             return self.model().create(**kwargs)
         return None
-    #    if remote_id:
-    #        kwargs['remote_id'] = remote_id
-    #        return self.create_local(*args, **kwargs)
-    #    return None
-
-#    def create_local(self, *args, **kwargs):
-#        id = "%(owner_id)s_%(remote_id)s" % kwargs
-#        posts = Post.remote.fetch(ids=[id])
-#        if posts:
-#            posts[0].save()
-#            return posts[0]
-#        return None
 
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
@@ -466,9 +454,9 @@ class Post(WallAbstractModel):
         }
         is_deleted = Post.remote.delete(**kwargs)
         if is_deleted:
-            #self..archived = True
-            #self..save()
-            pass
+            self.archived = True
+            self.save()
+        return self
 
     def restore(self, *args, **kwargs):
         owner_id, post_id = self.remote_id.split('_')
@@ -478,9 +466,8 @@ class Post(WallAbstractModel):
         }
         response = Post.remote.restore(**kwargs)
         if response:
-            #self.archived = False
-            #self.save()
-            pass
+            self.archived = False
+            self.save()
         return self
 
     def parse(self, response):
@@ -719,9 +706,9 @@ class Comment(WallAbstractModel):
         }
         is_deleted = Comment.remote.delete(**kwargs)
         if is_deleted:
-            #self..archived = True
-            #self..save()
-            pass
+            self.archived = True
+            self.save()
+        return self
 
     def restore(self, *args, **kwargs):
         owner_id, comment_id = self.remote_id.split('_')
@@ -731,9 +718,8 @@ class Comment(WallAbstractModel):
         }
         response = Comment.remote.restore(**kwargs)
         if response:
-            #self.archived = False
-            #self.save()
-            pass
+            self.archived = False
+            self.save()
         return self
 
     def parse(self, response):
