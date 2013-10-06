@@ -700,8 +700,8 @@ class Comment(WallAbstractModel):
             'post_id': '%s' % self.post.get_remote_post_id(),
             'from_group': kwargs.get('from_group', ''),
             'text': self.text,
-            'attachments': self.attachments,
-            'reply_to_comment': self.reply_for.id,
+            'attachments': kwargs.get('attachments', ''),
+            'reply_to_comment': self.reply_for.id if self.reply_for else '',
         }
 
     def prepare_update_params(self):
