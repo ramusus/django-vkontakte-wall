@@ -267,8 +267,58 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.reply_for.remote_id, 16271479)
 #        self.assertEqual(instance.reply_to.remote_id, '...2505')
 
-    def test_post_crud_create(self):
-        created_posts = []
+    def test_post_prepare_create_params(self):
+        text = 'test text'
+        expected_config = {
+            'owner_id': OWNER_ID,
+            'friends_only': 0,
+            'from_group': '',
+            'message': text,
+            'attachments': '',
+            'services': '',
+            'signed': 0,
+            'publish_date': '',
+            'lat': '',
+            'long': '',
+            'place_id': '',
+            'post_id': ''
+        }
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        post = Post()
+        post.wall_owner = group
+        post.text = text
+        self.assertEqual(post.prepare_create_params(), expected_config)
+
+    def test_post_prepare_update_params(self):
+        post = Post.remote.fetch(ids=['%s_17' % OWNER_ID])[0]
+        update_text = 'update text'
+        expected_config = {
+            'owner_id': OWNER_ID,
+            'friends_only': 0,
+            'from_group': '',
+            'message': update_text,
+            'attachments': u'',
+            'services': '',
+            'signed': 0,
+            'publish_date': '',
+            'lat': '',
+            'long': '',
+            'place_id': '',
+            'post_id': '17'
+        }
+        post1 = Post.objects.get(id=post.id)
+        post1.text = update_text
+        self.assertEqual(post1.prepare_update_params(), expected_config)
+
+    def test_post_prepare_delete_restore_params(self):
+        post = Post.remote.fetch(ids=['%s_17' % OWNER_ID])[0]
+        expected_params = {
+            'owner_id': OWNER_ID,
+            'post_id': '17',
+        }
+        self.assertEqual(post.prepare_delete_restore_params(), expected_params)
+
+    def test_post_crud_methods(self):
         message = 'Test message'
         param = {
             'owner_id': OWNER_ID,
@@ -278,33 +328,45 @@ class VkontakteWallTest(TestCase):
 
         # Create
         post = Post.remote.create(**param)
-        created_posts.append(post)
 
         self.assertTrue(post.remote_id > 0)
         self.assertEqual(post.text, param['message'])
 
         # Update
-        edited_message = 'Edited message'
-        post_edited = post.edit(message=edited_message)
-        self.assertEqual(post_edited.text, edited_message)
+        edited_message = 'Edited message with CRUD'
+        post = Post.objects.get(id=post.id)
+        post.text = edited_message
+        post.save()
+        self.assertEqual(post.text, edited_message)
 
         # Delete
-        for post in created_posts:
-            post.delete()
-            post1 = Post.objects.get(id=post.id)
-            self.assertTrue(post1.archived)
+        post.delete()
+        post1 = Post.objects.get(id=post.id)
+        self.assertTrue(post1.archived)
 
         # Restore
-        for post in created_posts:
-            post.restore()
-            post1 = Post.objects.get(id=post.id)
-            self.assertFalse(post1.archived)
+        post.restore()
+        post1 = Post.objects.get(id=post.id)
+        self.assertFalse(post1.archived)
 
-        # remove all posts
-        for post in created_posts:
-            post.delete()
+        post.delete()
 
-    def test_comment_crud_create(self):
+        # Create with save()
+        kwargs = post.__dict__
+        del kwargs['id']
+        del kwargs['remote_id']
+        del kwargs['archived']
+        post = Post()
+        post.__dict__.update(kwargs)
+        post.text = message + message
+        post.save()
+
+        self.assertTrue(post.remote_id > 0)
+        self.assertEqual(post.text, message + message)
+
+        post.delete()
+
+    def test_comment_crud_methods(self):
         message = 'Test message'
         param = {
             'owner_id': OWNER_ID,
@@ -320,25 +382,41 @@ class VkontakteWallTest(TestCase):
             'post_id': post.remote_id.split('_')[-1],
             'text': text,
         }
-        test_comment = Comment.remote.create(**commpent_param)
+        comment = Comment.remote.create(**commpent_param)
 
-        self.assertTrue(test_comment.remote_id > 0)
-        self.assertEqual(test_comment.text, text)
+        self.assertTrue(comment.remote_id > 0)
+        self.assertEqual(comment.text, text)
 
         # Update
         edited_message = 'Edited comment message'
-        comment1 = test_comment.edit(message=edited_message)
-        self.assertEqual(comment1.text, edited_message)
+        comment = Comment.objects.get(id=comment.id)
+        comment.text = edited_message
+        comment.save()
+
+        self.assertEqual(comment.text, edited_message)
 
         # Delete
-        test_comment.delete()
-        comment1 = Comment.objects.get(id=test_comment.id)
+        comment.delete()
+        comment1 = Comment.objects.get(id=comment.id)
         self.assertTrue(comment1.archived)
 
         # Restore
-        test_comment.restore()
-        comment1 = Comment.objects.get(id=test_comment.id)
+        comment.restore()
+        comment1 = Comment.objects.get(id=comment.id)
         self.assertFalse(comment1.archived)
+
+        # Create with save()
+        kwargs = comment.__dict__
+        del kwargs['id']
+        del kwargs['remote_id']
+        del kwargs['archived']
+        comment = Comment()
+        comment.__dict__.update(kwargs)
+        comment.text = message + message
+        comment.save()
+
+        self.assertTrue(comment.remote_id > 0)
+        self.assertEqual(comment.text, message + message)
 
         # remove template post
         post.delete()

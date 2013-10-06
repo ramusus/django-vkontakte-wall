@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 #from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel  # , VkontakteContentError
+from vkontakte_api.models import VkontakteManager, VkontakteCRUDModel  # , VkontakteContentError
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -21,11 +21,8 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 class VkontakteWallManager(VkontakteManager):
     def create(self, *args, **kwargs):
-        response = super(VkontakteWallManager, self).create(*args, **kwargs)
-        if response:
-            kwargs.update(response)
-            return self.model().create(**kwargs)
-        return None
+        return super(VkontakteWallManager, self).create(
+                commit_remote=True, *args, **kwargs)
 
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
@@ -233,7 +230,8 @@ class CommentRemoteManager(VkontakteWallManager):
             return post.wall_comments.all()
 
 
-class WallAbstractModel(VkontakteModel):
+#class WallAbstractModel(VkontakteModel):
+class WallAbstractModel(VkontakteCRUDModel):
     class Meta:
         abstract = True
 
@@ -241,7 +239,6 @@ class WallAbstractModel(VkontakteModel):
     slug_prefix = 'wall'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
-    archived = models.BooleanField(u'В архиве', default=False)
 
     # only for posts/comments from parser
     raw_html = models.TextField()
@@ -364,14 +361,13 @@ class Post(WallAbstractModel):
     post_source = models.TextField()
     online = models.PositiveSmallIntegerField(null=True)
     reply_count = models.PositiveSmallIntegerField(null=True)
-    #archived = models.BooleanField(default=False)
 
     objects = models.Manager()
     remote = PostRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'get',
         'getById': 'getById',
         'create': 'post',
-        'edit': 'edit',
+        'update': 'edit',
         'delete': 'delete',
         'restore': 'restore',
     })
@@ -435,40 +431,44 @@ class Post(WallAbstractModel):
 
         return super(Post, self).save(*args, **kwargs)
 
-    def edit(self, *args, **kwargs):
-        owner_id, post_id = self.remote_id.split('_')
-        kwargs['owner_id'] = '-%s' % owner_id
-        kwargs['post_id'] = post_id
-        if Post.remote.edit(*args, **kwargs):
-            id = '-%s' % self.remote_id
-            posts = Post.remote.fetch(ids=[id])
-            if posts:
-                return posts[0]
-        return self
+    def get_remote_owner_id(self):
+        owner_id = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group):
+            owner_id *= -1
+        return owner_id
 
-    def delete(self):
-        owner_id, post_id = self.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'post_id': post_id,
-        }
-        is_deleted = Post.remote.delete(**kwargs)
-        if is_deleted:
-            self.archived = True
-            self.save()
-        return self
+    def get_remote_post_id(self):
+        return self.remote_id.split('_')[1]
 
-    def restore(self, *args, **kwargs):
-        owner_id, post_id = self.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'post_id': post_id,
+    def prepare_create_params(self, **kwargs):
+        return {
+            'owner_id': '%s' % self.get_remote_owner_id(),
+            'friends_only': kwargs.get('friends_only', 0),
+            'from_group': kwargs.get('from_group', ''),
+            'message': self.text,
+            'attachments': self.attachments,
+            'services': kwargs.get('services', ''),
+            'signed': 1 if self.signer_id else 0,
+            'publish_date': kwargs.get('publish_date', ''),
+            'lat': kwargs.get('lat', ''),
+            'long': kwargs.get('long', ''),
+            'place_id': kwargs.get('place_id', ''),
+            'post_id': kwargs.get('post_id', '')
         }
-        response = Post.remote.restore(**kwargs)
+
+    def prepare_update_params(self):
+        return self.prepare_create_params(post_id=self.get_remote_post_id())
+
+    def prepare_delete_restore_params(self):
+        return {
+            'owner_id': '%s' % self.get_remote_owner_id(),
+            'post_id': '%s' % self.get_remote_post_id()
+        }
+
+    def parse_remote_id_from_response(self, response):
         if response:
-            self.archived = False
-            self.save()
-        return self
+            return '%s_%s' % (self.get_remote_owner_id(), response['post_id'])
+        return None
 
     def parse(self, response):
         self.raw_json = dict(response)
@@ -651,7 +651,7 @@ class Comment(WallAbstractModel):
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'getComments',
         'create': 'addComment',
-        'edit': 'editComment',
+        'update': 'editComment',
         'delete': 'deleteComment',
         'restore': 'restoreComment',
     })
@@ -684,6 +684,39 @@ class Comment(WallAbstractModel):
             raise ValueError("'reply_for' field should be Group or User instance, not %s" % self.reply_for_content_type)
 
         return super(Comment, self).save(*args, **kwargs)
+
+    def get_remote_owner_id(self):
+        owner_id = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group):
+            owner_id *= -1
+        return owner_id
+
+    def get_remote_comment_id(self):
+        return self.remote_id.split('_')[1]
+
+    def prepare_create_params(self, **kwargs):
+        return {
+            'owner_id': '%s' % self.get_remote_owner_id(),
+            'post_id': '%s' % self.post.get_remote_post_id(),
+            'from_group': kwargs.get('from_group', ''),
+            'text': self.text,
+            'attachments': self.attachments,
+            'reply_to_comment': self.reply_for.id,
+        }
+
+    def prepare_update_params(self):
+        return self.prepare_create_params(comment_id=self.get_remote_comment_id())
+
+    def prepare_delete_restore_params(self):
+        return {
+            'owner_id': '%s' % self.get_remote_owner_id(),
+            'comment_id': '%s' % self.get_remote_comment_id()
+        }
+
+    def parse_remote_id_from_response(self, response):
+        if response:
+            return '%s_%s' % (self.get_remote_owner_id(), response['post_id'])
+        return None
 
     def edit(self, *args, **kwargs):
         owner_id, comment_id = self.remote_id.split('_')
