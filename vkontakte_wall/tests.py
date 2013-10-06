@@ -27,6 +27,29 @@ class VkontakteWallTest(TestCase):
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
         self.assertTrue(len(posts) == Post.objects.count() == 2)
 
+    def test_fetch_comment(self, *args, **kwargs):
+        message = 'Test message'
+        param = {
+            'owner_id': OWNER_ID,
+            'friends_only': 0,
+            'message': message,
+        }
+
+        post = Post.remote.create(**param)
+
+        text = 'Comment message'
+        comment_param = {
+            'owner_id': OWNER_ID,
+            'post_id': post.remote_id.split('_')[-1],
+            'text': text,
+        }
+
+        comment = Comment.remote.create(**comment_param)
+        comments = Comment.remote.fetch(
+                ids=[comment.remote_id], owner_id=OWNER_ID, post_id=post.get_remote_post_id())
+        self.assertTrue(len(comments))
+        self.assertEqual(comments[0], comment)
+
     def fetch_post_comments_recursive_calls_ammount_side_effect(*args, **kwargs):
         comments_count = 100 if kwargs['offset'] == 0 else 6
         comments = [CommentFactory.create() for i in range(comments_count)]

@@ -126,9 +126,10 @@ class CommentRemoteManager(VkontakteWallManager):
         post = Post.objects.get(remote_id=post_remote_id)
         kwargs['extra_fields'] = {'post_id': post.id}
 
-        return [comment for comment \
-                    in super(CommentRemoteManager, self).fetch(*args, **kwargs)\
-                    if ids is None or comment.remote_id in ids]
+        result = super(CommentRemoteManager, self).fetch(*args, **kwargs)
+        if ids:
+            return result.filter(remote_id__in=ids)
+        return result
 
     @fetch_all(default_count=100)
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
@@ -396,7 +397,6 @@ class Post(WallAbstractModel):
             id = "%(owner_id)s_%(post_id)s" % kwargs
             wall_objs = Post.remote.fetch(ids=[id], **kwargs)
             if wall_objs:
-                wall_objs[0].save()
                 return wall_objs[0]
         return None
 
@@ -662,7 +662,6 @@ class Comment(WallAbstractModel):
             id = id.replace('-', '')
             wall_objs = Comment.remote.fetch(ids=[id], **kwargs)
             if wall_objs:
-                wall_objs[0].save()
                 return wall_objs[0]
         return None
 
