@@ -135,15 +135,27 @@ Django Vkontakte Wall
        >>> param = {'owner_id': OWNER_ID, 'friends_only': 0, 'message': 'message'}
        >>> post = Post.remote.create(**param)
        <Post:...>
-       >>> print post.message
+       >>> print post.text
+       'message'
+
+       или
+
+       >>> post = Post()
+       >>> post.text = 'blah...'
+       ....
+       >>> post.save()
+       <Post:...>
+       >>> print post.text
        'message'
     
 
 ### Редактирование опубликованной записи
 
         >>> edited_message = 'Edited message'
-        >>> post_edited = post.edit(message=edited_message)
-        >>> post_edited.text
+        >>> post = Post.objects.get(...)
+        >>> post.text = edited_message 
+        >>> post.save()
+        >>> post.text
         'Edited message'
 
 ### Удаление опупбликованной записи
@@ -154,9 +166,9 @@ Django Vkontakte Wall
 
 ### Востановление удаленной записи
 
-       >>> post.restore()   
+       >>> post.restore() # Запись не создается заново    
        >>> post.archived  
-       False               
+       False               # вместо этого аттрибуту archived присваивается False
 
 
 ### Публикация коментария к записи на стене
@@ -168,14 +180,23 @@ Django Vkontakte Wall
         <Comment:...>
         >>> test_comment.text
         'Comment message'
-    
-    
+
+        или
+
+        >>> comment = Comment()
+        >>> comment.text = text
+        ....
+        >>> comment.save()
+        >>> comment.remote_id
+        '123123_123'
+
 
 ### Редактирование опубликованного комментария
 
         >>> edited_message = 'Edited comment message'
-        >>> comment1 = test_comment.edit(message=edited_message)
-        >>> comment1.text
+        >>> comment = Comment.objects.get(...)
+        >>> comment.text = edited_message
+        >>> comment.save()
         'Edited comment message'
 
 ### Удаление опупбликованного комментария
@@ -186,8 +207,8 @@ Django Vkontakte Wall
 
 ### Востановление удаленного комментария
 
-       >>> test_comment.restore()   
+       >>> test_comment.restore() # Запись не создается заново    
        >>> test_comment.archived  
-       False               
+       False               # вместо этого аттрибуту archived присваивается False
 
 

@@ -377,12 +377,12 @@ class VkontakteWallTest(TestCase):
 
         # Create
         text = 'Comment message'
-        commpent_param = {
+        comment_param = {
             'owner_id': OWNER_ID,
             'post_id': post.remote_id.split('_')[-1],
             'text': text,
         }
-        comment = Comment.remote.create(**commpent_param)
+        comment = Comment.remote.create(**comment_param)
 
         self.assertTrue(comment.remote_id > 0)
         self.assertEqual(comment.text, text)
