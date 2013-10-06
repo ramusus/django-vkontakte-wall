@@ -704,8 +704,13 @@ class Comment(WallAbstractModel):
             'reply_to_comment': self.reply_for.id if self.reply_for else '',
         }
 
-    def prepare_update_params(self):
-        return self.prepare_create_params(comment_id=self.get_remote_comment_id())
+    def prepare_update_params(self, **kwargs):
+        return {
+            'owner_id': '%s' % self.get_remote_owner_id(),
+            'comment_id': self.get_remote_comment_id(),
+            'message': self.text,
+            'attachments': kwargs.get('attachments', ''),
+        }
 
     def prepare_delete_restore_params(self):
         return {
@@ -715,45 +720,8 @@ class Comment(WallAbstractModel):
 
     def parse_remote_id_from_response(self, response):
         if response:
-            return '%s_%s' % (self.get_remote_owner_id(), response['post_id'])
+            return '%s_%s' % (self.get_remote_owner_id(), response['cid'])
         return None
-
-    def edit(self, *args, **kwargs):
-        owner_id, comment_id = self.remote_id.split('_')
-
-        kwargs['owner_id'] = '-%s' % owner_id
-        kwargs['post_id'] = self.post.remote_id.split('_')[-1]
-        kwargs['comment_id'] = comment_id
-
-        if Comment.remote.edit(*args, **kwargs):
-            posts = Comment.remote.fetch(ids=[self.remote_id], **kwargs)
-            if posts:
-                return posts[0]
-        return self
-
-    def delete(self):
-        owner_id, comment_id = self.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'comment_id': comment_id,
-        }
-        is_deleted = Comment.remote.delete(**kwargs)
-        if is_deleted:
-            self.archived = True
-            self.save()
-        return self
-
-    def restore(self, *args, **kwargs):
-        owner_id, comment_id = self.remote_id.split('_')
-        kwargs = {
-            'owner_id': '-' + owner_id,
-            'comment_id': comment_id,
-        }
-        response = Comment.remote.restore(**kwargs)
-        if response:
-            self.archived = False
-            self.save()
-        return self
 
     def parse(self, response):
         self.raw_json = response
