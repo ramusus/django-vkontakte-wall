@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 #from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteCRUDModel  # , VkontakteContentError
+from vkontakte_api.models import VkontakteCRUDManager, VkontakteCRUDModel  # , VkontakteContentError
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -19,7 +19,7 @@ log = logging.getLogger('vkontakte_wall')
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
-class VkontakteWallManager(VkontakteManager):
+class VkontakteWallManager(VkontakteCRUDManager):
     def create(self, *args, **kwargs):
         return super(VkontakteWallManager, self).create(
                 commit_remote=True, *args, **kwargs)

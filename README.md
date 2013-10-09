@@ -127,13 +127,9 @@ Django Vkontakte Wall
     [<Comment: ...>, <Comment: ...>, <Comment: ...>, '...(remaining elements truncated)...']
 
 
-Использование API
----------------------
-
 ### Публикация записи на стене
 
-       >>> param = {'owner_id': OWNER_ID, 'friends_only': 0, 'message': 'message'}
-       >>> post = Post.remote.create(**param)
+       >>> post = Post.objects.create(**param)
        <Post:...>
        >>> print post.text
        'message'
@@ -173,13 +169,9 @@ Django Vkontakte Wall
 
 ### Публикация коментария к записи на стене
 
-        >>> text = 'Comment message'
-        >>> commpent_param = { 'owner_id': OWNER_ID, 'post_id': post.remote_id.split('_')[-1], 'text': text}
-        >>> test_comment = Comment.remote.create(**commpent_param)
+        >>> test_comment = Comment.objects.create(**commpent_param)
         >>> test_comment
         <Comment:...>
-        >>> test_comment.text
-        'Comment message'
 
         или
 
