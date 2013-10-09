@@ -404,6 +404,11 @@ class Post(WallAbstractModel):
         # check strings for good encoding
         # there is problems to save users with bad encoded activity strings like user ID=88798245
 
+#        try:
+#            self.text.encode('utf-16').decode('utf-16')
+#        except UnicodeDecodeError:
+#            self.text = ''
+
         # TODO: move this checking and other one to universal place
         # set exactly right Group or User contentTypes, not a child
         for field_name in ['wall_owner', 'author']:
