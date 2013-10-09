@@ -130,7 +130,6 @@ Django Vkontakte Wall
 ### Публикация записи на стене
 
        >>> post = Post.objects.create(**param)
-       <Post:...>
        >>> print post.text
        'message'
 
@@ -140,16 +139,14 @@ Django Vkontakte Wall
        >>> post.text = 'blah...'
        ....
        >>> post.save()
-       <Post:...>
-       >>> print post.text
+       >>> post.text
        'message'
     
 
 ### Редактирование опубликованной записи
 
-        >>> edited_message = 'Edited message'
-        >>> post = Post.objects.get(...)
-        >>> post.text = edited_message 
+        >>> post = Post.objects.get(remote_id='5223304_130')
+        >>> post.text = 'Edited message' 
         >>> post.save()
         >>> post.text
         'Edited message'
@@ -176,19 +173,22 @@ Django Vkontakte Wall
         или
 
         >>> comment = Comment()
-        >>> comment.text = text
+        >>> comment.text = 'text'
         ....
         >>> comment.save()
         >>> comment.remote_id
         '123123_123'
+        >>> comment.text
+        'text'
 
 
 ### Редактирование опубликованного комментария
 
         >>> edited_message = 'Edited comment message'
         >>> comment = Comment.objects.get(...)
-        >>> comment.text = edited_message
+        >>> comment.text = 'Edited comment message'
         >>> comment.save()
+        >>> comment.text
         'Edited comment message'
 
 ### Удаление опупбликованного комментария

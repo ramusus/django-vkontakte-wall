@@ -120,6 +120,8 @@ class CommentRemoteManager(VkontakteWallManager):
     def fetch(self, ids=None, *args, **kwargs):
         '''
         Retrieve and save object to local DB
+
+        kwargs must included owner_id and post_id
         '''
         post_remote_id = "%(owner_id)s_%(post_id)s" % kwargs
         post_remote_id = post_remote_id.replace('-', '')
