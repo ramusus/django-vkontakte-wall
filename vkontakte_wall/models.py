@@ -438,7 +438,7 @@ class Post(WallAbstractModel):
 
     def get_remote_owner_id(self):
         owner_id = self.wall_owner.remote_id
-        if isinstance(self.wall_owner, Group):
+        if isinstance(self.wall_owner, Group) and owner_id > 0:
             owner_id *= -1
         return owner_id
 
@@ -447,7 +447,7 @@ class Post(WallAbstractModel):
 
     def prepare_create_params(self, **kwargs):
         return {
-            'owner_id': '%s' % self.get_remote_owner_id(),
+            'owner_id': self.get_remote_owner_id(),
             'friends_only': kwargs.get('friends_only', 0),
             'from_group': kwargs.get('from_group', ''),
             'message': self.text,
@@ -466,8 +466,8 @@ class Post(WallAbstractModel):
 
     def prepare_delete_restore_params(self):
         return {
-            'owner_id': '%s' % self.get_remote_owner_id(),
-            'post_id': '%s' % self.get_remote_post_id()
+            'owner_id': self.get_remote_owner_id(),
+            'post_id': self.get_remote_post_id()
         }
 
     def parse_remote_id_from_response(self, response):
@@ -691,7 +691,7 @@ class Comment(WallAbstractModel):
 
     def get_remote_owner_id(self):
         owner_id = self.wall_owner.remote_id
-        if isinstance(self.wall_owner, Group):
+        if isinstance(self.wall_owner, Group) and owner_id > 0:
             owner_id *= -1
         return owner_id
 
@@ -700,8 +700,8 @@ class Comment(WallAbstractModel):
 
     def prepare_create_params(self, **kwargs):
         return {
-            'owner_id': '%s' % self.get_remote_owner_id(),
-            'post_id': '%s' % self.post.get_remote_post_id(),
+            'owner_id': self.get_remote_owner_id(),
+            'post_id': self.post.get_remote_post_id(),
             'from_group': kwargs.get('from_group', ''),
             'text': self.text,
             'attachments': kwargs.get('attachments', ''),
@@ -710,7 +710,7 @@ class Comment(WallAbstractModel):
 
     def prepare_update_params(self, **kwargs):
         return {
-            'owner_id': '%s' % self.get_remote_owner_id(),
+            'owner_id': self.get_remote_owner_id(),
             'comment_id': self.get_remote_comment_id(),
             'message': self.text,
             'attachments': kwargs.get('attachments', ''),
@@ -718,8 +718,8 @@ class Comment(WallAbstractModel):
 
     def prepare_delete_restore_params(self):
         return {
-            'owner_id': '%s' % self.get_remote_owner_id(),
-            'comment_id': '%s' % self.get_remote_comment_id()
+            'owner_id': self.get_remote_owner_id(),
+            'comment_id': self.get_remote_comment_id()
         }
 
     def parse_remote_id_from_response(self, response):

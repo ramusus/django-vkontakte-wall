@@ -15,7 +15,7 @@ GROUP_POST_ID = '-16297716_126261'
 GROUP_COMMENT_ID = '-16297716_126262'
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
-OWNER_ID = '-59154616'
+OWNER_ID = -59154616
 
 
 class VkontakteWallTest(TestCase):
@@ -39,8 +39,8 @@ class VkontakteWallTest(TestCase):
 
         text = 'Comment message'
         comment_param = {
-            'owner_id': OWNER_ID,
-            'post_id': post.remote_id.split('_')[-1],
+            'owner_id': int(OWNER_ID),
+            'post_id': int(post.remote_id.split('_')[-1]),
             'text': text,
         }
 
@@ -297,7 +297,7 @@ class VkontakteWallTest(TestCase):
             'friends_only': 0,
             'from_group': '',
             'message': text,
-            'attachments': '',
+            'attachments': u'',
             'services': '',
             'signed': 0,
             'publish_date': '',
