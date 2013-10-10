@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 #from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteCRUDManager, VkontakteCRUDModel  # , VkontakteContentError
+from vkontakte_api.models import VkontakteManager, VkontakteCRUDModel  # , VkontakteContentError
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -19,7 +19,7 @@ log = logging.getLogger('vkontakte_wall')
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
-class VkontakteWallManager(VkontakteCRUDManager):
+class VkontakteWallManager(VkontakteManager):
     def create(self, *args, **kwargs):
         return super(VkontakteWallManager, self).create(
                 commit_remote=True, *args, **kwargs)
@@ -116,22 +116,6 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
 
 class CommentRemoteManager(VkontakteWallManager):
-
-    def fetch(self, ids=None, *args, **kwargs):
-        '''
-        Retrieve and save object to local DB
-
-        kwargs must included owner_id and post_id
-        '''
-        post_remote_id = "%(owner_id)s_%(post_id)s" % kwargs
-        post_remote_id = post_remote_id.replace('-', '')
-        post = Post.objects.get(remote_id=post_remote_id)
-        kwargs['extra_fields'] = {'post_id': post.id}
-
-        result = super(CommentRemoteManager, self).fetch(*args, **kwargs)
-        if ids:
-            return result.filter(remote_id__in=ids)
-        return result
 
     @fetch_all(default_count=100)
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
@@ -394,14 +378,6 @@ class Post(WallAbstractModel):
     def __unicode__(self):
         return '%s: %s' % (unicode(self.wall_owner), self.text)
 
-    def create(self, *args, **kwargs):
-        if 'post_id' in kwargs:
-            id = "%(owner_id)s_%(post_id)s" % kwargs
-            wall_objs = Post.remote.fetch(ids=[id], **kwargs)
-            if wall_objs:
-                return wall_objs[0]
-        return None
-
     def save(self, *args, **kwargs):
         # check strings for good encoding
         # there is problems to save users with bad encoded activity strings like user ID=88798245
@@ -662,15 +638,6 @@ class Comment(WallAbstractModel):
         'delete': 'deleteComment',
         'restore': 'restoreComment',
     })
-
-    def create(self, *args, **kwargs):
-        if 'cid' in kwargs:
-            id = "%(owner_id)s_%(cid)s" % kwargs
-            id = id.replace('-', '')
-            wall_objs = Comment.remote.fetch(ids=[id], **kwargs)
-            if wall_objs:
-                return wall_objs[0]
-        return None
 
     def save(self, *args, **kwargs):
         self.wall_owner = self.post.wall_owner

@@ -27,28 +27,28 @@ class VkontakteWallTest(TestCase):
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
         self.assertTrue(len(posts) == Post.objects.count() == 2)
 
-    def test_fetch_comment(self, *args, **kwargs):
-        message = 'Test message'
-        param = {
-            'owner_id': OWNER_ID,
-            'friends_only': 0,
-            'message': message,
-        }
-
-        post = Post.remote.create(**param)
-
-        text = 'Comment message'
-        comment_param = {
-            'owner_id': int(OWNER_ID),
-            'post_id': int(post.remote_id.split('_')[-1]),
-            'text': text,
-        }
-
-        comment = Comment.remote.create(**comment_param)
-        comments = Comment.remote.fetch(
-                ids=[comment.remote_id], owner_id=OWNER_ID, post_id=post.get_remote_post_id())
-        self.assertTrue(len(comments))
-        self.assertEqual(comments[0], comment)
+#    def test_fetch_comment(self, *args, **kwargs):
+#        message = 'Test message'
+#        param = {
+#            'owner_id': OWNER_ID,
+#            'friends_only': 0,
+#            'message': message,
+#        }
+#
+#        post = Post.remote.create(**param)
+#
+#        text = 'Comment message'
+#        comment_param = {
+#            'owner_id': int(OWNER_ID),
+#            'post_id': int(post.remote_id.split('_')[-1]),
+#            'text': text,
+#        }
+#
+#        comment = Comment.remote.create(**comment_param)
+#        comments = Comment.remote.fetch(
+#                ids=[comment.remote_id], owner_id=OWNER_ID, post_id=post.get_remote_post_id())
+#        self.assertTrue(len(comments))
+#        self.assertEqual(comments[0], comment)
 
     def fetch_post_comments_recursive_calls_ammount_side_effect(*args, **kwargs):
         comments_count = 100 if kwargs['offset'] == 0 else 6
@@ -343,17 +343,21 @@ class VkontakteWallTest(TestCase):
 
     def test_post_crud_methods(self):
         message = 'Test message'
-        param = {
-            'owner_id': OWNER_ID,
-            'friends_only': 0,
-            'message': message,
-        }
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        mock_post = PostFactory.create(text=message, wall_owner=group)
+        kwargs = {}
+        for key in mock_post.__dict__:
+            if not key.startswith('_'):
+                kwargs[key] = mock_post.__dict__[key]
+        del kwargs['id']
+        del kwargs['remote_id']
+        del kwargs['archived']
 
-        # Create
-        post = Post.remote.create(**param)
+        #create by objects api
+        post = Post.objects.create(**kwargs)
 
         self.assertTrue(post.remote_id > 0)
-        self.assertEqual(post.text, param['message'])
+        self.assertEqual(post.text, kwargs['text'])
 
         # Update
         edited_message = 'Edited message with CRUD'
@@ -390,22 +394,20 @@ class VkontakteWallTest(TestCase):
         post.delete()
 
     def test_comment_crud_methods(self):
-        message = 'Test message'
-        param = {
-            'owner_id': OWNER_ID,
-            'friends_only': 0,
-            'message': message,
-        }
-        post = Post.remote.create(**param)
+        text = 'Test message'
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        post = PostFactory.create(text=text, wall_owner=group)
+        mock_comment = CommentFactory.create(text=text, post=post, wall_owner=group)
+        kwargs = {}
+        for key in mock_comment.__dict__:
+            if not key.startswith('_'):
+                kwargs[key] = mock_comment.__dict__[key]
+        del kwargs['id']
+        del kwargs['remote_id']
+        del kwargs['archived']
 
         # Create
-        text = 'Comment message'
-        comment_param = {
-            'owner_id': OWNER_ID,
-            'post_id': post.remote_id.split('_')[-1],
-            'text': text,
-        }
-        comment = Comment.remote.create(**comment_param)
+        comment = Comment.objects.create(**kwargs)
 
         self.assertTrue(comment.remote_id > 0)
         self.assertEqual(comment.text, text)
@@ -435,11 +437,11 @@ class VkontakteWallTest(TestCase):
         del kwargs['archived']
         comment = Comment()
         comment.__dict__.update(kwargs)
-        comment.text = message + message
+        comment.text = text + text
         comment.save()
 
         self.assertTrue(comment.remote_id > 0)
-        self.assertEqual(comment.text, message + message)
+        self.assertEqual(comment.text, text + text)
 
         # remove template post
         post.delete()
