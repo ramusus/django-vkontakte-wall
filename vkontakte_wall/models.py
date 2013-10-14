@@ -514,6 +514,9 @@ class Post(WallAbstractModel):
         # положительное число, по умолчанию 20, максимальное значение 100
         kwargs['count'] = int(count)
 
+        if offset == 0:
+            self.repost_users.clear()
+
         log.debug('Fetching reposts of post ID=%s of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
 
         response = api_call('wall.getReposts', **kwargs)
