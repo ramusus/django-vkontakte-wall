@@ -518,13 +518,24 @@ class Post(WallAbstractModel):
 
         response = api_call('wall.getReposts', **kwargs)
         new_users_ids = []
-        for user in response['profiles']:
-            user_instance, created = User.objects.get_or_create(remote_id=user['uid'])
-            if created:
-                new_users_ids += [user['uid']]
-            self.repost_users.add(user_instance)
+        profiles = dict([(profile['uid'], profile) for profile in response['profiles']])
+        for post in response['items']:
+            user_id = post.get('from_id')
+            # TODO: implement schema for group reposting support with links to texts via though model
+            if user_id and user_id > 0:
+                try:
+                    user_instance = User.objects.get(remote_id=user_id)
+                except User.DoesNotExist:
+                    user_instance = User.objects.create(remote_id=user_id)
+                    if user_id in profiles:
+                        user_instance.parse(profiles[user_id])
+                        user_instance.save()
+                    else:
+                        new_users_ids += [user_id]
 
-        # update info of new users
+                self.repost_users.add(user_instance)
+
+        # update info of new users, that was not found in 'profiles' dict
         if new_users_ids:
             User.remote.fetch(ids=new_users_ids)
 

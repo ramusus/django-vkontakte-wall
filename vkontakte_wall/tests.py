@@ -174,6 +174,14 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(post.reposts >= 20)
         self.assertTrue(post.reposts == post.repost_users.count() == users.count())
 
+        group = GroupFactory.create(remote_id=36948301)
+        post = PostFactory.create(remote_id='-36948301_13599', wall_owner=group)
+
+        self.assertTrue(post.reposts == post.repost_users.count() == 0)
+        users = post.fetch_reposts(all=True)
+        self.assertTrue(post.reposts == 1)
+        self.assertTrue(post.reposts == post.repost_users.count() == users.count())
+
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_post_likes(self, *args, **kwargs):
 
