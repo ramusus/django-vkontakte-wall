@@ -271,12 +271,12 @@ class Post(WallAbstractModel):
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
-    wall_owner_id = models.PositiveIntegerField()
+    wall_owner_id = models.PositiveIntegerField(db_index=True)
     wall_owner = generic.GenericForeignKey('wall_owner_content_type', 'wall_owner_id')
 
     # Создатель/автор сообщения
     author_content_type = models.ForeignKey(ContentType, related_name='vkontakte_posts')
-    author_id = models.PositiveIntegerField()
+    author_id = models.PositiveIntegerField(db_index=True)
     author = generic.GenericForeignKey('author_content_type', 'author_id')
 
     # abstract field for correct deleting group and user models in admin
@@ -288,9 +288,9 @@ class Post(WallAbstractModel):
     date = models.DateTimeField(u'Время сообщения', db_index=True)
     text = models.TextField(u'Текст записи')
 
-    comments = models.PositiveIntegerField(u'Кол-во комментариев', default=0)
-    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
-    reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0)
+    comments = models.PositiveIntegerField(u'Кол-во комментариев', default=0, db_index=True)
+    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
+    reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0, db_index=True)
 
     like_users = models.ManyToManyField(User, related_name='like_posts')
     repost_users = models.ManyToManyField(User, related_name='repost_posts')
@@ -330,7 +330,7 @@ class Post(WallAbstractModel):
     signer_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись была опубликована от имени группы и подписана пользователем, то в поле содержится идентификатор её автора')
 
     copy_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_copy_posts', null=True)
-    copy_owner_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
+    copy_owner_id = models.PositiveIntegerField(null=True, db_index=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
     copy_owner = generic.GenericForeignKey('copy_owner_content_type', 'copy_owner_id')
 
     copy_post = models.ForeignKey('Post', null=True, help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
@@ -608,19 +608,19 @@ class Comment(WallAbstractModel):
 
     # Владелец стены сообщения User or Group (декомпозиция от self.post для фильтра в админке)
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_comments')
-    wall_owner_id = models.PositiveIntegerField()
+    wall_owner_id = models.PositiveIntegerField(db_index=True)
     wall_owner = generic.GenericForeignKey('wall_owner_content_type', 'wall_owner_id')
 
     # Автор комментария
     author_content_type = models.ForeignKey(ContentType, related_name='comments')
-    author_id = models.PositiveIntegerField()
+    author_id = models.PositiveIntegerField(db_index=True)
     author = generic.GenericForeignKey('author_content_type', 'author_id')
 
     from_id = models.IntegerField(null=True) # strange value, seems to be equal to author
 
     # Это ответ пользователю
     reply_for_content_type = models.ForeignKey(ContentType, null=True, related_name='replies')
-    reply_for_id = models.PositiveIntegerField(null=True)
+    reply_for_id = models.PositiveIntegerField(null=True, db_index=True)
     reply_for = generic.GenericForeignKey('reply_for_content_type', 'reply_for_id')
 
     reply_to = models.ForeignKey('self', null=True, verbose_name=u'Это ответ на комментарий')
@@ -634,7 +634,7 @@ class Comment(WallAbstractModel):
     date = models.DateTimeField(u'Время комментария', db_index=True)
     text = models.TextField(u'Текст комментария')
 
-    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
+    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
 
     like_users = models.ManyToManyField(User, related_name='like_comments')
 
