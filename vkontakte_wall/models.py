@@ -339,7 +339,7 @@ class Post(WallAbstractModel):
     # not in API
     post_source = models.TextField()
     online = models.PositiveSmallIntegerField(null=True)
-    reply_count = models.PositiveSmallIntegerField(null=True)
+    reply_count = models.PositiveIntegerField(null=True)
 
     objects = models.Manager()
     remote = PostRemoteManager(remote_pk=('remote_id',), methods={
