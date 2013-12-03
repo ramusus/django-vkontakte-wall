@@ -48,8 +48,6 @@ Django Vkontakte Wall
 * [wall.deleteComments](http://vk.com/dev/wall.deleteComments) – удаляет комментарий текущего пользователя к записи на своей или чужой стене;
 * [wall.restoreComments](http://vk.com/dev/wall.restoreComments) – восстанавливает комментарий текущего пользователя к записи на своей или чужой стене;
 
-В планах:
-
 
 Использование парсера
 ---------------------
