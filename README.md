@@ -35,14 +35,15 @@ Django Vkontakte Wall
 Покрытие методов API
 --------------------
 
-* [wall.get](http://vk.com/developers.php?oid=-1&p=wall.get) – возвращает список записей со стены;
-* [wall.getComments](http://vk.com/developers.php?oid=-1&p=wall.getComments) – получает комментарии к записи на стене пользователя;
-* [wall.getById](http://vk.com/developers.php?oid=-1&p=wall.getById) – получает записи со стен пользователей по их идентификаторам.
-* [wall.getLikes](http://vk.com/developers.php?oid=-1&p=wall.getLikes) – Получает информацию о пользователях которым нравится данная запись.
+* [wall.get](http://vk.com/dev/wall.get) – возвращает список записей со стены;
+* [wall.getComments](http://vk.com/dev/wall.getComments) – получает комментарии к записи на стене пользователя;
+* [wall.getById](http://vk.com/dev/wall.getById) – получает записи со стен пользователей по их идентификаторам;
+* [wall.getLikes](http://vk.com/dev/wall.getLikes) – Получает информацию о пользователях которым нравится данная запись;
+* [wall.getReposts](http://vk.com/dev/wall.getReposts) – Позволяет получать список репостов заданной записи.
 
 В планах:
 
-* [wall.post](http://vk.com/developers.php?oid=-1&p=wall.post) – добавляет запись на стену.
+* [wall.post](http://vk.com/dev/wall.post) – добавляет запись на стену.
 
 Использование парсера
 ---------------------

@@ -238,12 +238,12 @@ class WallAbstractModel(VkontakteModel):
 
         return Model.objects.get_or_create(remote_id=abs(remote_id))
 
-    def update_and_get_likes(self, *args, **kwargs):
+    def update_count_and_get_likes(self, *args, **kwargs):
         self.likes = self.like_users.count()
         self.save()
         return self.like_users.all()
 
-    @fetch_all(return_all=update_and_get_likes, default_count=1000)
+    @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
         kwargs['offset'] = int(offset)
@@ -255,7 +255,7 @@ class WallAbstractModel(VkontakteModel):
         log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.wall_owner, offset))
 
         ids = super(WallAbstractModel, self).fetch_likes(*args, **kwargs)
-        users = User.remote.fetch(ids=ids) if ids else []
+        users = User.remote.fetch(ids=ids) if ids else User.objects.none()
         for user in users:
             self.like_users.add(user)
 
@@ -271,12 +271,12 @@ class Post(WallAbstractModel):
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
-    wall_owner_id = models.PositiveIntegerField()
+    wall_owner_id = models.PositiveIntegerField(db_index=True)
     wall_owner = generic.GenericForeignKey('wall_owner_content_type', 'wall_owner_id')
 
     # Создатель/автор сообщения
     author_content_type = models.ForeignKey(ContentType, related_name='vkontakte_posts')
-    author_id = models.PositiveIntegerField()
+    author_id = models.PositiveIntegerField(db_index=True)
     author = generic.GenericForeignKey('author_content_type', 'author_id')
 
     # abstract field for correct deleting group and user models in admin
@@ -288,9 +288,9 @@ class Post(WallAbstractModel):
     date = models.DateTimeField(u'Время сообщения', db_index=True)
     text = models.TextField(u'Текст записи')
 
-    comments = models.PositiveIntegerField(u'Кол-во комментариев', default=0)
-    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
-    reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0)
+    comments = models.PositiveIntegerField(u'Кол-во комментариев', default=0, db_index=True)
+    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
+    reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0, db_index=True)
 
     like_users = models.ManyToManyField(User, related_name='like_posts')
     repost_users = models.ManyToManyField(User, related_name='repost_posts')
@@ -330,7 +330,7 @@ class Post(WallAbstractModel):
     signer_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись была опубликована от имени группы и подписана пользователем, то в поле содержится идентификатор её автора')
 
     copy_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_copy_posts', null=True)
-    copy_owner_id = models.PositiveIntegerField(null=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
+    copy_owner_id = models.PositiveIntegerField(null=True, db_index=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
     copy_owner = generic.GenericForeignKey('copy_owner_content_type', 'copy_owner_id')
 
     copy_post = models.ForeignKey('Post', null=True, help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
@@ -339,7 +339,7 @@ class Post(WallAbstractModel):
     # not in API
     post_source = models.TextField()
     online = models.PositiveSmallIntegerField(null=True)
-    reply_count = models.PositiveSmallIntegerField(null=True)
+    reply_count = models.PositiveIntegerField(null=True)
 
     objects = models.Manager()
     remote = PostRemoteManager(remote_pk=('remote_id',), methods={
@@ -481,8 +481,72 @@ class Post(WallAbstractModel):
         else:
             return self.like_users.all()
 
-    def fetch_reposts(self, offset=0):
+    def fetch_reposts(self, source='api', *args, **kwargs):
+        if source == 'api':
+            return self.fetch_reposts_api(*args, **kwargs)
+        else:
+            return self.fetch_reposts_parser(*args, **kwargs)
+
+    def update_count_and_get_reposts(self, *args, **kwargs):
+        self.reposts = self.repost_users.count()
+        self.save()
+        return self.repost_users.all()
+
+    @fetch_all(return_all=update_count_and_get_reposts, default_count=1000)
+    def fetch_reposts_api(self, offset=0, count=1000, *args, **kwargs):
+        if count > 1000:
+            raise ValueError("Parameter 'count' can not be more than 1000")
+
+        # owner_id
+        # идентификатор пользователя или сообщества, на стене которого находится запись. Если параметр не задан, то он считается равным идентификатору текущего пользователя.
+        # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
+        kwargs['owner_id'] = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group):
+            kwargs['owner_id'] *= -1
+        # post_id
+        # идентификатор записи на стене.
+        kwargs['post_id'] = self.remote_id.split('_')[1]
+        # offset
+        # смещение, необходимое для выборки определенного подмножества записей.
+        kwargs['offset'] = int(offset)
+        # count
+        # количество записей, которое необходимо получить.
+        # положительное число, по умолчанию 20, максимальное значение 100
+        kwargs['count'] = int(count)
+
+        if offset == 0:
+            self.repost_users.clear()
+
+        log.debug('Fetching reposts of post ID=%s of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+
+        response = api_call('wall.getReposts', **kwargs)
+        new_users_ids = []
+        profiles = dict([(profile['uid'], profile) for profile in response['profiles']])
+        for post in response['items']:
+            user_id = post.get('from_id')
+            # TODO: implement schema for group reposting support with links to texts via though model
+            if user_id and user_id > 0:
+                try:
+                    user_instance = User.objects.get(remote_id=user_id)
+                except User.DoesNotExist:
+                    user_instance = User.objects.create(remote_id=user_id)
+                    if user_id in profiles:
+                        user_instance.parse(profiles[user_id])
+                        user_instance.save()
+                    else:
+                        new_users_ids += [user_id]
+
+                self.repost_users.add(user_instance)
+
+        # update info of new users, that was not found in 'profiles' dict
+        if new_users_ids:
+            User.remote.fetch(ids=new_users_ids)
+
+        return self.repost_users.all()
+
+    def fetch_reposts_parser(self, offset=0):
         '''
+        OLD method via parser, may works incorrect
         Update and save fields:
             * reposts - count of reposts
         Update relations
@@ -544,19 +608,19 @@ class Comment(WallAbstractModel):
 
     # Владелец стены сообщения User or Group (декомпозиция от self.post для фильтра в админке)
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_comments')
-    wall_owner_id = models.PositiveIntegerField()
+    wall_owner_id = models.PositiveIntegerField(db_index=True)
     wall_owner = generic.GenericForeignKey('wall_owner_content_type', 'wall_owner_id')
 
     # Автор комментария
     author_content_type = models.ForeignKey(ContentType, related_name='comments')
-    author_id = models.PositiveIntegerField()
+    author_id = models.PositiveIntegerField(db_index=True)
     author = generic.GenericForeignKey('author_content_type', 'author_id')
 
     from_id = models.IntegerField(null=True) # strange value, seems to be equal to author
 
     # Это ответ пользователю
     reply_for_content_type = models.ForeignKey(ContentType, null=True, related_name='replies')
-    reply_for_id = models.PositiveIntegerField(null=True)
+    reply_for_id = models.PositiveIntegerField(null=True, db_index=True)
     reply_for = generic.GenericForeignKey('reply_for_content_type', 'reply_for_id')
 
     reply_to = models.ForeignKey('self', null=True, verbose_name=u'Это ответ на комментарий')
@@ -570,7 +634,7 @@ class Comment(WallAbstractModel):
     date = models.DateTimeField(u'Время комментария', db_index=True)
     text = models.TextField(u'Текст комментария')
 
-    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
+    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
 
     like_users = models.ManyToManyField(User, related_name='like_comments')
 
