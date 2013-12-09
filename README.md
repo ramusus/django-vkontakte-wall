@@ -134,7 +134,7 @@ Django Vkontakte Wall
        или
 
        >>> post = Post()
-       >>> post.text = 'blah...'
+       >>> post.text = 'message'
        ....
        >>> post.save()
        >>> post.text
@@ -164,7 +164,7 @@ Django Vkontakte Wall
 
 ### Публикация коментария к записи на стене
 
-        >>> test_comment = Comment.objects.create(**commpent_param)
+        >>> test_comment = Comment.objects.create(**compent_param)
         >>> test_comment
         <Comment:...>
 

@@ -4,7 +4,7 @@ from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 #from datetime import datetime
-#from vkontakte_api.utils import api_call
+from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteManager, VkontakteCRUDModel  # , VkontakteContentError
 from vkontakte_api.decorators import fetch_all
@@ -20,7 +20,7 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
 class VkontakteWallManager(VkontakteManager):
-    def create(self, *args, **kwargs):
+    def create(self, commit_remote=True, *args, **kwargs):
         return super(VkontakteWallManager, self).create(
                 commit_remote=True, *args, **kwargs)
 

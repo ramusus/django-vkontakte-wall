@@ -1,11 +1,14 @@
 from vkontakte_users.factories import UserFactory
 from vkontakte_groups.factories import GroupFactory
+from vkontakte_api.factories import DjangoModelNoCommitFactory
 from models import Post, Comment
 from datetime import datetime
 import factory
-import random
+#import random
 
-class PostFactory(factory.DjangoModelFactory):
+
+#class PostFactory(factory.DjangoModelFactory):
+class PostFactory(DjangoModelNoCommitFactory):
     FACTORY_FOR = Post
 
     date = datetime.now()
@@ -14,11 +17,14 @@ class PostFactory(factory.DjangoModelFactory):
     author = factory.SubFactory(UserFactory)
     remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.wall_owner.remote_id, n))
 
+
 class GroupPostFactory(PostFactory):
     wall_owner = factory.SubFactory(GroupFactory)
     remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.wall_owner.remote_id, n))
 
-class CommentFactory(factory.DjangoModelFactory):
+
+#class CommentFactory(factory.DjangoModelFactory):
+class CommentFactory(DjangoModelNoCommitFactory):
     FACTORY_FOR = Comment
 
     date = datetime.now()

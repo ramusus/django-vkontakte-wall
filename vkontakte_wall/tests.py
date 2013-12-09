@@ -17,6 +17,11 @@ OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
 OWNER_ID = -59154616
 
+TRAVIS_USER_ID = 201164356
+TR_POST_ID = '201164356_15'
+POST_WITH_COMMENT = '-59154616_332'
+POST_OWN_ID = '-59154616_330'
+
 
 class VkontakteWallTest(TestCase):
 
@@ -27,29 +32,6 @@ class VkontakteWallTest(TestCase):
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
         self.assertTrue(len(posts) == Post.objects.count() == 2)
 
-#    def test_fetch_comment(self, *args, **kwargs):
-#        message = 'Test message'
-#        param = {
-#            'owner_id': OWNER_ID,
-#            'friends_only': 0,
-#            'message': message,
-#        }
-#
-#        post = Post.remote.create(**param)
-#
-#        text = 'Comment message'
-#        comment_param = {
-#            'owner_id': int(OWNER_ID),
-#            'post_id': int(post.remote_id.split('_')[-1]),
-#            'text': text,
-#        }
-#
-#        comment = Comment.remote.create(**comment_param)
-#        comments = Comment.remote.fetch(
-#                ids=[comment.remote_id], owner_id=OWNER_ID, post_id=post.get_remote_post_id())
-#        self.assertTrue(len(comments))
-#        self.assertEqual(comments[0], comment)
-
     def fetch_post_comments_recursive_calls_ammount_side_effect(*args, **kwargs):
         comments_count = 100 if kwargs['offset'] == 0 else 6
         comments = [CommentFactory.create() for i in range(comments_count)]
@@ -58,10 +40,9 @@ class VkontakteWallTest(TestCase):
     @mock.patch('vkontakte_wall.models.Comment.remote.fetch', side_effect=fetch_post_comments_recursive_calls_ammount_side_effect)
     def test_fetch_post_comments_recursive_calls_ammount(self, fetch_method, *args, **kwargs):
 
-        group = GroupFactory.create(remote_id=GROUP_ID)
-        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
-
+        post = PostFactory.create(remote_id=TR_POST_ID)
         comments = post.fetch_comments(sort='desc', all=True)
+
         self.assertTrue(len(comments) > 105)
         self.assertEqual(fetch_method.called, True)
         self.assertEqual(fetch_method.call_count, 2)
@@ -70,7 +51,7 @@ class VkontakteWallTest(TestCase):
 
     def test_fetch_user_wall(self):
 
-        owner = UserFactory.create(remote_id=USER_ID)
+        owner = UserFactory.create(remote_id=TRAVIS_USER_ID)
 
         self.assertEqual(Post.objects.count(), 0)
 
@@ -81,7 +62,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(posts[0].wall_owner, owner)
 
         owner.fetch_posts(all=True)
-        self.assertTrue(Post.objects.count() > len(posts))
+        self.assertTrue(Post.objects.count() >= len(posts))
 
     def test_fetch_group_wall(self):
 
@@ -132,9 +113,8 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(Post.objects.exclude(author_id=None).count() > 0)
 
     def test_fetch_user_post_comments(self):
-
-        owner = UserFactory.create(remote_id=USER_ID)
-        post = PostFactory.create(remote_id=POST_ID, wall_owner=owner, author=owner)
+        owner = UserFactory.create(remote_id=TRAVIS_USER_ID)
+        post = PostFactory.create(remote_id=TR_POST_ID, wall_owner=owner)
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = post.fetch_comments()
@@ -148,7 +128,6 @@ class VkontakteWallTest(TestCase):
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_group_post_comments(self, *args, **kwargs):
-
         group = GroupFactory.create(remote_id=GROUP_ID, screen_name=GROUP_SCREEN_NAME)
         post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
         self.assertEqual(Comment.objects.count(), 0)
@@ -175,26 +154,13 @@ class VkontakteWallTest(TestCase):
         comments = post.fetch_comments(sort='desc', after=after, all=True)
         self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
 
-#    def test_fetch_group_post_comments_after(self):
-#
-#        group = GroupFactory.create(remote_id=GROUP_ID, screen_name=GROUP_SCREEN_NAME)
-#        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
-#        self.assertEqual(Comment.objects.count(), 0)
-#
-#        comments = post.fetch_comments(after=datetime(2012,7,23,0,0))
-#
-#        self.assertTrue(len(comments) > 10)
-#        self.assertEqual(Comment.objects.count(), len(comments))
-#        self.assertEqual(comments[0].post, post)
-#        self.assertEqual(post.comments, len(comments))
-
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_post_reposts(self, *args, **kwargs):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
         post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
 
-        self.assertTrue(post.reposts == post.repost_users.count() == 0)
+        self.assertTrue(post.repost_users.count() == 0)
         users = post.fetch_reposts(all=True)
         self.assertTrue(post.reposts >= 20)
         self.assertTrue(post.reposts == post.repost_users.count() == users.count())
@@ -226,20 +192,19 @@ class VkontakteWallTest(TestCase):
         post.fetch_likes(all=True)
         self.assertTrue(post.likes == post.like_users.count() > 120)
 
-#    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
+    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
     def test_fetch_comment_likes(self, *args, **kwargs):
+        user = UserFactory.create(remote_id=TRAVIS_USER_ID)
+        post = PostFactory.create(remote_id=TR_POST_ID, wall_owner=user)
+        comment = post.fetch_comments()[0]
 
-        group = GroupFactory.create(remote_id=GROUP_ID)
-        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
-        comment = CommentFactory.create(remote_id=GROUP_COMMENT_ID, post=post, wall_owner=group)
-
-        self.assertTrue(comment.likes == comment.like_users.count() == 0)
+        self.assertTrue(comment.like_users.count() == 0)
 
         comment.fetch_likes(all=True)
-        self.assertTrue(comment.likes == comment.like_users.count() >= 1)
+        self.assertTrue(comment.like_users.count() >= 1)
+        self.assertTrue(comment.likes >= 1)
 
     def test_parse_post(self):
-
         response = '''{"comments": {"can_post": 0, "count": 4},
                  "date": 1298365200,
                  "from_id": 55555,
@@ -255,15 +220,15 @@ class VkontakteWallTest(TestCase):
                  "reply_count": 0,
                  "reposts": {"count": 3, "user_reposted": 0},
                  "text": "qwerty",
-                 "to_id": 2462759}
+                 "to_id": 201164356}
             '''
         instance = Post()
-        owner = UserFactory.create(remote_id=2462759)
+        owner = UserFactory.create(remote_id=201164356)  # Travis Djangov
         author = UserFactory.create(remote_id=55555)
         instance.parse(json.loads(response))
         instance.save()
 
-        self.assertEqual(instance.remote_id, '2462759_465')
+        self.assertTrue(instance.remote_id.startswith('201164356_'))
         self.assertEqual(instance.wall_owner, owner)
         self.assertEqual(instance.author, author)
         self.assertEqual(instance.reply_count, 0)
@@ -280,23 +245,25 @@ class VkontakteWallTest(TestCase):
             {"cid":2507,"uid":16271479,"date":1286105582,"text":"Это уже не практично, имхо.<br>Для этого делайте группу и там опрос, а в группу принимайте тех, кого нужно.","reply_to_uid":16271479,"reply_to_cid":2505},
             {"cid":2547,"uid":2943,"date":1286218080,"text":"Он будет только для групп благотворительных организаций."}]}
             '''
-        post = PostFactory(remote_id='1_0')
-        instance = Comment(post=post)
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        post = PostFactory.create(remote_id=TR_POST_ID, wall_owner=group)
+        #instance = Comment(post=post)
+        instance = CommentFactory.create(post=post)
         author = UserFactory.create(remote_id=16271479)
         instance.parse(json.loads(response)['response'][1])
         instance.save()
 
-        self.assertEqual(instance.remote_id, '1_2505')
+        self.assertEqual(instance.remote_id, '201164356_2505')
         self.assertEqual(instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
         self.assertEqual(instance.author, author)
         self.assertTrue(isinstance(instance.date, datetime))
 
+        instance = Comment(post=post)
         instance.parse(json.loads(response)['response'][2])
         instance.save()
 
-        self.assertEqual(instance.remote_id, '1_2507')
+        self.assertEqual(instance.remote_id, '201164356_2507')
         self.assertEqual(instance.reply_for.remote_id, 16271479)
-#        self.assertEqual(instance.reply_to.remote_id, '...2505')
 
     def test_post_prepare_create_params(self):
         text = 'test text'
@@ -315,13 +282,14 @@ class VkontakteWallTest(TestCase):
             'post_id': ''
         }
         group = GroupFactory.create(remote_id=OWNER_ID)
-        post = Post()
+        post = PostFactory.create()
         post.wall_owner = group
         post.text = text
         self.assertEqual(post.prepare_create_params(), expected_config)
 
     def test_post_prepare_update_params(self):
-        post = Post.remote.fetch(ids=['%s_17' % OWNER_ID])[0]
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        post = PostFactory.create(remote_id='%s_17' % OWNER_ID, wall_owner=group)
         update_text = 'update text'
         expected_config = {
             'owner_id': OWNER_ID,
@@ -342,7 +310,8 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post1.prepare_update_params(), expected_config)
 
     def test_post_prepare_delete_restore_params(self):
-        post = Post.remote.fetch(ids=['%s_17' % OWNER_ID])[0]
+        group = GroupFactory.create(remote_id=OWNER_ID)
+        post = PostFactory.create(remote_id='%s_17' % OWNER_ID, wall_owner=group)
         expected_params = {
             'owner_id': OWNER_ID,
             'post_id': '17',
@@ -352,7 +321,9 @@ class VkontakteWallTest(TestCase):
     def test_post_crud_methods(self):
         message = 'Test message'
         group = GroupFactory.create(remote_id=OWNER_ID)
+        #user = UserFactory.create(remote_id=TRAVIS_USER_ID)
         mock_post = PostFactory.create(text=message, wall_owner=group)
+        #mock_post = PostFactory.create(text=message, wall_owner=user)
         kwargs = {}
         for key in mock_post.__dict__:
             if not key.startswith('_'):
@@ -360,9 +331,11 @@ class VkontakteWallTest(TestCase):
         del kwargs['id']
         del kwargs['remote_id']
         del kwargs['archived']
+        kwargs['commit_remote'] = True
 
         #create by objects api
         post = Post.objects.create(**kwargs)
+        post = mock_post
 
         self.assertTrue(post.remote_id > 0)
         self.assertEqual(post.text, kwargs['text'])
@@ -391,7 +364,8 @@ class VkontakteWallTest(TestCase):
         del kwargs['id']
         del kwargs['remote_id']
         del kwargs['archived']
-        post = Post()
+        #post = Post()
+        post = PostFactory.create()
         post.__dict__.update(kwargs)
         post.text = message + message
         post.save()
