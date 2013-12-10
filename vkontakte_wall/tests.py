@@ -331,7 +331,6 @@ class VkontakteWallTest(TestCase):
         del kwargs['id']
         del kwargs['remote_id']
         del kwargs['archived']
-        kwargs['commit_remote'] = True
 
         #create by objects api
         post = Post.objects.create(**kwargs)

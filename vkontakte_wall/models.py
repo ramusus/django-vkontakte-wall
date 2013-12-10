@@ -20,10 +20,7 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
 class VkontakteWallManager(VkontakteManager):
-    def create(self, commit_remote=True, *args, **kwargs):
-        return super(VkontakteWallManager, self).create(
-                commit_remote=True, *args, **kwargs)
-
+    pass
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
 
@@ -224,6 +221,7 @@ class WallAbstractModel(VkontakteCRUDModel):
 
     methods_namespace = 'wall'
     slug_prefix = 'wall'
+    _commit_remote = False
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
