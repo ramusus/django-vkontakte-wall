@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel  # , VkontakteContentError
+from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
