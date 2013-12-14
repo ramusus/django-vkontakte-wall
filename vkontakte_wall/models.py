@@ -250,6 +250,7 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
     @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
+        kwargs['likes_type'] = self.likes_type
         kwargs['offset'] = int(offset)
         kwargs['item_id'] = self.remote_id.split('_')[1]
         kwargs['owner_id'] = self.wall_owner.remote_id
@@ -258,11 +259,7 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
 
         log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.wall_owner, offset))
 
-        ids = super(WallAbstractModel, self).fetch_likes(*args, **kwargs)
-        users = User.remote.fetch(ids=ids) if ids else User.objects.none()
-        for user in users:
-            self.like_users.add(user)
-
+        users = User.remote.fetch_instance_likes(self, *args, **kwargs)
         return users
 
 

@@ -174,35 +174,52 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(post.reposts == post.repost_users.count() == users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
-    def test_fetch_post_likes(self, *args, **kwargs):
+    def test_fetch_post_likes_parser(self, *args, **kwargs):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
         post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
 
-        self.assertTrue(post.likes == post.like_users.count() == 0)
+        self.assertEqual(post.like_users.count(), 0)
+        self.assertEqual(post.likes, 0)
 
         post.fetch_likes(source='parser')
-        self.assertTrue(post.likes == post.like_users.count() > 120)
+        self.assertTrue(post.likes > 120)
+        self.assertEqual(post.likes, post.like_users.count())
 
-        post.like_users.all().delete()
-        post.likes = 0
-        post.save()
-        self.assertTrue(post.likes == post.like_users.count() == 0)
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_fetch_group_post_likes(self, *args, **kwargs):
 
-        post.fetch_likes(all=True)
-        self.assertTrue(post.likes == post.like_users.count() > 120)
+        group = GroupFactory.create(remote_id=GROUP_ID)
+        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
 
-    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory.create())
-    def test_fetch_comment_likes(self, *args, **kwargs):
-        user = UserFactory.create(remote_id=TRAVIS_USER_ID)
-        post = PostFactory.create(remote_id=TR_POST_ID, wall_owner=user)
-        comment = post.fetch_comments()[0]
+        self.assertEqual(post.like_users.count(), 0)
+        self.assertEqual(post.likes, 0)
 
-        self.assertTrue(comment.like_users.count() == 0)
+        users_initial = User.objects.count()
 
-        comment.fetch_likes(all=True)
-        self.assertTrue(comment.like_users.count() >= 1)
-        self.assertTrue(comment.likes >= 1)
+        users = post.fetch_likes(all=True)
+
+        self.assertTrue(post.likes > 120)
+        self.assertEqual(post.likes, len(users))
+        self.assertEqual(post.likes, User.objects.count() - users_initial)
+        self.assertEqual(post.likes, post.like_users.count())
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_fetch_group_post_comment_likes(self, *args, **kwargs):
+        group = GroupFactory.create(remote_id=GROUP_ID)
+        post = PostFactory.create(remote_id=GROUP_POST_ID, wall_owner=group)
+        comment = CommentFactory(remote_id=GROUP_COMMENT_ID, post=post, wall_owner=group)
+
+        self.assertEqual(comment.like_users.count(), 0)
+        self.assertEqual(comment.likes, 0)
+        users_initial = User.objects.count()
+
+        users = comment.fetch_likes(all=True)
+
+        self.assertTrue(comment.likes > 0)
+        self.assertEqual(comment.likes, len(users))
+        self.assertEqual(comment.likes, User.objects.count() - users_initial)
+        self.assertEqual(comment.likes, comment.like_users.count())
 
     def test_parse_post(self):
         response = '''{"comments": {"can_post": 0, "count": 4},
