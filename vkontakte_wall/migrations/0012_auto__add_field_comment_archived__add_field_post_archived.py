@@ -13,10 +13,18 @@ class Migration(SchemaMigration):
                       self.gf('django.db.models.fields.BooleanField')(default=False),
                       keep_default=False)
 
+        # Adding field 'Post.archived'
+        db.add_column(u'vkontakte_wall_post', 'archived',
+                      self.gf('django.db.models.fields.BooleanField')(default=False),
+                      keep_default=False)
+
 
     def backwards(self, orm):
         # Deleting field 'Comment.archived'
         db.delete_column(u'vkontakte_wall_comment', 'archived')
+
+        # Deleting field 'Post.archived'
+        db.delete_column(u'vkontakte_wall_post', 'archived')
 
 
     models = {
@@ -31,7 +39,7 @@ class Migration(SchemaMigration):
             'Meta': {'ordering': "['name']", 'object_name': 'City'},
             'area': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
             'country': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'cities'", 'null': 'True', 'to': u"orm['vkontakte_places.Country']"}),
-            'fetched': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'fetched': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
             'region': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
@@ -39,7 +47,7 @@ class Migration(SchemaMigration):
         },
         u'vkontakte_places.country': {
             'Meta': {'ordering': "['name']", 'object_name': 'Country'},
-            'fetched': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'fetched': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
             'remote_id': ('django.db.models.fields.BigIntegerField', [], {'unique': 'True'})
@@ -59,7 +67,7 @@ class Migration(SchemaMigration):
             'facebook_name': ('django.db.models.fields.CharField', [], {'max_length': '500'}),
             'faculty': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
             'faculty_name': ('django.db.models.fields.CharField', [], {'max_length': '500'}),
-            'fetched': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'fetched': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
             'first_name': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'followers': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'friends': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
@@ -67,7 +75,7 @@ class Migration(SchemaMigration):
             'friends_users': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'followers_users'", 'symmetrical': 'False', 'to': u"orm['vkontakte_users.User']"}),
             'games': ('django.db.models.fields.TextField', [], {}),
             'graduation': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
-            'has_mobile': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
+            'has_mobile': ('django.db.models.fields.NullBooleanField', [], {'null': 'True', 'blank': 'True'}),
             'home_phone': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'interests': ('django.db.models.fields.TextField', [], {}),
@@ -78,7 +86,7 @@ class Migration(SchemaMigration):
             'mutual_friends': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'notes': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'photo': ('django.db.models.fields.URLField', [], {'max_length': '200'}),
-            'photo_big': ('django.db.models.fields.URLField', [], {'max_length': '200'}),
+            'photo_big': ('django.db.models.fields.URLField', [], {'max_length': '200', 'db_index': 'True'}),
             'photo_medium': ('django.db.models.fields.URLField', [], {'max_length': '200'}),
             'photo_medium_rec': ('django.db.models.fields.URLField', [], {'max_length': '200'}),
             'photo_rec': ('django.db.models.fields.URLField', [], {'max_length': '200'}),
@@ -98,60 +106,60 @@ class Migration(SchemaMigration):
             'user_photos': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'user_videos': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
             'videos': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
-            'wall_comments': ('django.db.models.fields.BooleanField', [], {'default': 'False'})
+            'wall_comments': ('django.db.models.fields.NullBooleanField', [], {'null': 'True', 'blank': 'True'})
         },
         u'vkontakte_wall.comment': {
             'Meta': {'ordering': "['post', '-date']", 'object_name': 'Comment'},
             'archived': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'author_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'comments'", 'to': u"orm['contenttypes.ContentType']"}),
-            'author_id': ('django.db.models.fields.PositiveIntegerField', [], {}),
+            'author_id': ('django.db.models.fields.PositiveIntegerField', [], {'db_index': 'True'}),
             'date': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True'}),
-            'fetched': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'fetched': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
             'from_id': ('django.db.models.fields.IntegerField', [], {'null': 'True'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'like_users': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'like_comments'", 'symmetrical': 'False', 'to': u"orm['vkontakte_users.User']"}),
-            'likes': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
+            'likes': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0', 'db_index': 'True'}),
             'post': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'wall_comments'", 'to': u"orm['vkontakte_wall.Post']"}),
             'raw_html': ('django.db.models.fields.TextField', [], {}),
             'raw_json': ('annoying.fields.JSONField', [], {'default': '{}', 'null': 'True'}),
             'remote_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': "'20'"}),
             'reply_for_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'replies'", 'null': 'True', 'to': u"orm['contenttypes.ContentType']"}),
-            'reply_for_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
+            'reply_for_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'db_index': 'True'}),
             'reply_to': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['vkontakte_wall.Comment']", 'null': 'True'}),
             'text': ('django.db.models.fields.TextField', [], {}),
             'wall_owner_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'vkontakte_wall_comments'", 'to': u"orm['contenttypes.ContentType']"}),
-            'wall_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {})
+            'wall_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {'db_index': 'True'})
         },
         u'vkontakte_wall.post': {
             'Meta': {'ordering': "['wall_owner_id', '-date']", 'object_name': 'Post'},
             'archived': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'attachments': ('django.db.models.fields.TextField', [], {}),
             'author_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'vkontakte_posts'", 'to': u"orm['contenttypes.ContentType']"}),
-            'author_id': ('django.db.models.fields.PositiveIntegerField', [], {}),
-            'comments': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
+            'author_id': ('django.db.models.fields.PositiveIntegerField', [], {'db_index': 'True'}),
+            'comments': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0', 'db_index': 'True'}),
             'copy_owner_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'vkontakte_wall_copy_posts'", 'null': 'True', 'to': u"orm['contenttypes.ContentType']"}),
-            'copy_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
+            'copy_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'db_index': 'True'}),
             'copy_post': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['vkontakte_wall.Post']", 'null': 'True'}),
             'copy_text': ('django.db.models.fields.TextField', [], {}),
             'date': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True'}),
-            'fetched': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
+            'fetched': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
             'geo': ('django.db.models.fields.TextField', [], {}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'like_users': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'like_posts'", 'symmetrical': 'False', 'to': u"orm['vkontakte_users.User']"}),
-            'likes': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
+            'likes': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0', 'db_index': 'True'}),
             'media': ('django.db.models.fields.TextField', [], {}),
             'online': ('django.db.models.fields.PositiveSmallIntegerField', [], {'null': 'True'}),
             'post_source': ('django.db.models.fields.TextField', [], {}),
             'raw_html': ('django.db.models.fields.TextField', [], {}),
             'raw_json': ('annoying.fields.JSONField', [], {'default': '{}', 'null': 'True'}),
             'remote_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': "'20'"}),
-            'reply_count': ('django.db.models.fields.PositiveSmallIntegerField', [], {'null': 'True'}),
+            'reply_count': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
             'repost_users': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'repost_posts'", 'symmetrical': 'False', 'to': u"orm['vkontakte_users.User']"}),
-            'reposts': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
+            'reposts': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0', 'db_index': 'True'}),
             'signer_id': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True'}),
             'text': ('django.db.models.fields.TextField', [], {}),
             'wall_owner_content_type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'vkontakte_wall_posts'", 'to': u"orm['contenttypes.ContentType']"}),
-            'wall_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {})
+            'wall_owner_id': ('django.db.models.fields.PositiveIntegerField', [], {'db_index': 'True'})
         }
     }
 
