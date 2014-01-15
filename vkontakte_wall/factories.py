@@ -4,10 +4,8 @@ from vkontakte_api.factories import DjangoModelNoCommitFactory
 from models import Post, Comment
 from datetime import datetime
 import factory
-#import random
 
 
-#class PostFactory(factory.DjangoModelFactory):
 class PostFactory(DjangoModelNoCommitFactory):
     FACTORY_FOR = Post
 
@@ -23,7 +21,6 @@ class GroupPostFactory(PostFactory):
     remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.wall_owner.remote_id, n))
 
 
-#class CommentFactory(factory.DjangoModelFactory):
 class CommentFactory(DjangoModelNoCommitFactory):
     FACTORY_FOR = Comment
 

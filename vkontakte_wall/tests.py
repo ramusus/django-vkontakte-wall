@@ -9,23 +9,36 @@ import mock
 
 USER_ID = 5223304
 POST_ID = '5223304_130'
+
 GROUP_ID = 16297716
 GROUP_SCREEN_NAME = 'cocacola'
 GROUP_POST_ID = '-16297716_126261'
 GROUP_COMMENT_ID = '-16297716_126262'
+
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
-OWNER_ID = -59154616
+
+GROUP_CRUD_ID = 59154616
+POST_CRUD_ID = '-59154616_366'
+USER_AUTHOR_ID = 201164356
+
 GROUP2_ID = 22522055
 GROUP2_POST_WITH_MANY_LIKES_ID = '-22522055_484919'
 
-TRAVIS_USER_ID = 201164356
-TR_POST_ID = '201164356_15'
-POST_WITH_COMMENT = '-59154616_332'
-POST_OWN_ID = '-59154616_330'
+# TRAVIS_USER_ID = 201164356
+# TR_POST_ID = '201164356_15'
+# POST_WITH_COMMENT = '-59154616_332'
+# POST_OWN_ID = '-59154616_330'
 
 
 class VkontakteWallTest(TestCase):
+
+    def setUp(self):
+        self.objects_to_delete = []
+
+    def tearDown(self):
+        for object in self.objects_to_delete:
+            object.delete(commit_remote=True)
 
     def test_fetch_posts(self, *args, **kwargs):
 
@@ -42,7 +55,9 @@ class VkontakteWallTest(TestCase):
     @mock.patch('vkontakte_wall.models.Comment.remote.fetch', side_effect=fetch_post_comments_recursive_calls_ammount_side_effect)
     def test_fetch_post_comments_recursive_calls_ammount(self, fetch_method, *args, **kwargs):
 
-        post = PostFactory(remote_id=TR_POST_ID)
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
+
         comments = post.fetch_comments(sort='desc', all=True)
 
         self.assertTrue(len(comments) > 105)
@@ -53,7 +68,7 @@ class VkontakteWallTest(TestCase):
 
     def test_fetch_user_wall(self):
 
-        owner = UserFactory(remote_id=TRAVIS_USER_ID)
+        owner = UserFactory(remote_id=USER_ID)
 
         self.assertEqual(Post.objects.count(), 0)
 
@@ -115,8 +130,9 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(Post.objects.exclude(author_id=None).count() > 0)
 
     def test_fetch_user_post_comments(self):
-        owner = UserFactory(remote_id=TRAVIS_USER_ID)
-        post = PostFactory(remote_id=TR_POST_ID, wall_owner=owner)
+
+        owner = UserFactory(remote_id=USER_ID)
+        post = PostFactory(remote_id=POST_ID, wall_owner=owner, author=owner)
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = post.fetch_comments()
@@ -282,22 +298,22 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.text, 'qwerty')
         self.assertTrue(isinstance(instance.date, datetime))
 
-    def test_parse_comments(self):
+    def test_parse_comment(self):
 
         response = '''{"response":[6,
             {"cid":2505,"uid":16271479,"date":1298365200,"text":"Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе)."},
             {"cid":2507,"uid":16271479,"date":1286105582,"text":"Это уже не практично, имхо.<br>Для этого делайте группу и там опрос, а в группу принимайте тех, кого нужно.","reply_to_uid":16271479,"reply_to_cid":2505},
             {"cid":2547,"uid":2943,"date":1286218080,"text":"Он будет только для групп благотворительных организаций."}]}
             '''
-        group = GroupFactory(remote_id=OWNER_ID)
-        post = PostFactory(remote_id=TR_POST_ID, wall_owner=group)
+        user = UserFactory(remote_id=USER_ID)
+        post = PostFactory(remote_id=POST_ID, wall_owner=user)
         #instance = Comment(post=post)
         instance = CommentFactory(post=post)
         author = UserFactory(remote_id=16271479)
         instance.parse(json.loads(response)['response'][1])
         instance.save()
 
-        self.assertEqual(instance.remote_id, '201164356_2505')
+        self.assertEqual(instance.remote_id, '%s_2505' % USER_ID)
         self.assertEqual(instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
         self.assertEqual(instance.author, author)
         self.assertTrue(isinstance(instance.date, datetime))
@@ -306,13 +322,13 @@ class VkontakteWallTest(TestCase):
         instance.parse(json.loads(response)['response'][2])
         instance.save()
 
-        self.assertEqual(instance.remote_id, '201164356_2507')
+        self.assertEqual(instance.remote_id, '%s_2507' % USER_ID)
         self.assertEqual(instance.reply_for.remote_id, 16271479)
 
     def test_post_prepare_create_params(self):
         text = 'test text'
         expected_config = {
-            'owner_id': OWNER_ID,
+            'owner_id': GROUP_ID * -1,
             'friends_only': 0,
             'from_group': '',
             'message': text,
@@ -325,18 +341,18 @@ class VkontakteWallTest(TestCase):
             'place_id': '',
             'post_id': ''
         }
-        group = GroupFactory(remote_id=OWNER_ID)
+        group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory()
         post.wall_owner = group
         post.text = text
         self.assertEqual(post.prepare_create_params(), expected_config)
 
     def test_post_prepare_update_params(self):
-        group = GroupFactory(remote_id=OWNER_ID)
-        post = PostFactory(remote_id='%s_17' % OWNER_ID, wall_owner=group)
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id='%s_17' % GROUP_ID, wall_owner=group)
         update_text = 'update text'
         expected_config = {
-            'owner_id': OWNER_ID,
+            'owner_id': GROUP_ID * -1,
             'friends_only': 0,
             'from_group': '',
             'message': update_text,
@@ -347,126 +363,117 @@ class VkontakteWallTest(TestCase):
             'lat': '',
             'long': '',
             'place_id': '',
-            'post_id': '17'
+            'post_id': u'17'
         }
         post1 = Post.objects.get(id=post.id)
         post1.text = update_text
         self.assertEqual(post1.prepare_update_params(), expected_config)
 
-    def test_post_prepare_delete_restore_params(self):
-        group = GroupFactory(remote_id=OWNER_ID)
-        post = PostFactory(remote_id='%s_17' % OWNER_ID, wall_owner=group)
+    def test_post_prepare_delete_params(self):
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id='%s_17' % GROUP_ID, wall_owner=group)
         expected_params = {
-            'owner_id': OWNER_ID,
+            'owner_id': GROUP_ID * -1,
             'post_id': '17',
         }
-        self.assertEqual(post.prepare_delete_restore_params(), expected_params)
+        self.assertEqual(post.prepare_delete_params(), expected_params)
 
     def test_post_crud_methods(self):
-        message = 'Test message'
-        group = GroupFactory(remote_id=OWNER_ID)
-        #user = UserFactory(remote_id=TRAVIS_USER_ID)
-        mock_post = PostFactory(text=message, wall_owner=group)
-        #mock_post = PostFactory(text=message, wall_owner=user)
-        kwargs = {}
-        for key in mock_post.__dict__:
-            if not key.startswith('_'):
-                kwargs[key] = mock_post.__dict__[key]
-        del kwargs['id']
-        del kwargs['remote_id']
-        del kwargs['archived']
+        group = GroupFactory(remote_id=GROUP_CRUD_ID)
+        user = UserFactory(remote_id=USER_AUTHOR_ID)
 
-        #create by objects api
-        post = Post.objects(**kwargs)
-        post = mock_post
+        def assert_local_equal_to_remote(post):
+            post_remote = Post.remote.fetch(ids=[post.remote_id])[0]
+            self.assertEqual(post_remote.remote_id, post.remote_id)
+            self.assertEqual(post_remote.text, post.text)
 
-        self.assertTrue(post.remote_id > 0)
-        self.assertEqual(post.text, kwargs['text'])
+        self.assertEqual(Post.objects.count(), 0)
 
-        # Update
-        edited_message = 'Edited message with CRUD'
-        post = Post.objects.get(id=post.id)
-        post.text = edited_message
-        post.save()
-        self.assertEqual(post.text, edited_message)
+        # create
+        post = Post(text='Test message', wall_owner=group, author=user, date=datetime.now())
+        post.save(commit_remote=True)
+        self.objects_to_delete += [post]
 
-        # Delete
-        post.delete()
-        post1 = Post.objects.get(id=post.id)
-        self.assertTrue(post1.archived)
+        self.assertEqual(Post.objects.count(), 1)
+        self.assertNotEqual(len(post.remote_id), 0)
+        assert_local_equal_to_remote(post)
 
-        # Restore
-        post.restore()
-        post1 = Post.objects.get(id=post.id)
-        self.assertFalse(post1.archived)
+        # update
+        post.text = 'Test message updated'
+        post.save(commit_remote=True)
 
-        post.delete()
+        self.assertEqual(Post.objects.count(), 1)
+        assert_local_equal_to_remote(post)
 
-        # Create with save()
-        kwargs = post.__dict__
-        del kwargs['id']
-        del kwargs['remote_id']
-        del kwargs['archived']
-        #post = Post()
-        post = PostFactory()
-        post.__dict__.update(kwargs)
-        post.text = message + message
-        post.save()
+        # delete
+        post.delete(commit_remote=True)
 
-        self.assertTrue(post.remote_id > 0)
-        self.assertEqual(post.text, message + message)
+        self.assertEqual(Post.objects.count(), 1)
+        self.assertTrue(post.archived)
+        self.assertEqual(Post.remote.fetch(ids=[post.remote_id]).count(), 0)
 
-        post.delete()
+        # restore
+        post.restore(commit_remote=True)
+        self.assertFalse(post.archived)
+
+        self.assertEqual(Post.objects.count(), 1)
+        assert_local_equal_to_remote(post)
+
+        # create by manager
+        post = Post.objects.create(text='Test message created by manager', wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [post]
+
+        self.assertEqual(Post.objects.count(), 2)
+        self.assertNotEqual(len(post.remote_id), 0)
+        assert_local_equal_to_remote(post)
 
     def test_comment_crud_methods(self):
-        text = 'Test message'
-        group = GroupFactory(remote_id=OWNER_ID)
-        post = PostFactory(text=text, wall_owner=group)
-        mock_comment = CommentFactory(text=text, post=post, wall_owner=group)
-        kwargs = {}
-        for key in mock_comment.__dict__:
-            if not key.startswith('_'):
-                kwargs[key] = mock_comment.__dict__[key]
-        del kwargs['id']
-        del kwargs['remote_id']
-        del kwargs['archived']
+        group = GroupFactory(remote_id=GROUP_CRUD_ID)
+        post = PostFactory(remote_id=POST_CRUD_ID, text='', wall_owner=group)
+        user = UserFactory(remote_id=USER_AUTHOR_ID)
 
-        # Create
-        comment = Comment.objects(**kwargs)
+        def assert_local_equal_to_remote(comment):
+            comment_remote = Comment.remote.fetch_post(post=comment.post).get(remote_id=comment.remote_id)
+            self.assertEqual(comment_remote.remote_id, comment.remote_id)
+            self.assertEqual(comment_remote.text, comment.text)
 
-        self.assertTrue(comment.remote_id > 0)
-        self.assertEqual(comment.text, text)
+        Comment.remote.fetch_post(post=post)
+        self.assertEqual(Comment.objects.count(), 0)
 
-        # Update
-        edited_message = 'Edited comment message'
-        comment = Comment.objects.get(id=comment.id)
-        comment.text = edited_message
-        comment.save()
+        # create
+        comment = Comment(text='Test comment', post=post, wall_owner=group, author=user, date=datetime.now())
+        comment.save(commit_remote=True)
+        self.objects_to_delete += [comment]
 
-        self.assertEqual(comment.text, edited_message)
+        self.assertEqual(Comment.objects.count(), 1)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
 
-        # Delete
-        comment.delete()
-        comment1 = Comment.objects.get(id=comment.id)
-        self.assertTrue(comment1.archived)
+        # update
+        comment.text = 'Test comment updated'
+        comment.save(commit_remote=True)
 
-        # Restore
-        comment.restore()
-        comment1 = Comment.objects.get(id=comment.id)
-        self.assertFalse(comment1.archived)
+        self.assertEqual(Comment.objects.count(), 1)
+        assert_local_equal_to_remote(comment)
 
-        # Create with save()
-        kwargs = comment.__dict__
-        del kwargs['id']
-        del kwargs['remote_id']
-        del kwargs['archived']
-        comment = Comment()
-        comment.__dict__.update(kwargs)
-        comment.text = text + text
-        comment.save()
+        # delete
+        comment.delete(commit_remote=True)
 
-        self.assertTrue(comment.remote_id > 0)
-        self.assertEqual(comment.text, text + text)
+        self.assertEqual(Comment.objects.count(), 1)
+        self.assertTrue(comment.archived)
+        self.assertEqual(Comment.remote.fetch_post(post=comment.post).filter(remote_id=comment.remote_id).count(), 0)
 
-        # remove template post
-        post.delete()
+        # restore
+        comment.restore(commit_remote=True)
+        self.assertFalse(comment.archived)
+
+        self.assertEqual(Comment.objects.count(), 1)
+        assert_local_equal_to_remote(comment)
+
+        # create by manager
+        comment = Comment.objects.create(text='Test comment created by manager', post=post, wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [comment]
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)

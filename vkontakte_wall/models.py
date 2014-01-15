@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel
+from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -232,6 +232,33 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
     def slug(self):
         return self.slug_prefix + str(self.remote_id)
 
+    @property
+    def on_group_wall(self):
+        return self.wall_owner_content_type == ContentType.objects.get_for_model(Group)
+
+    @property
+    def on_user_wall(self):
+        return self.wall_owner_content_type == ContentType.objects.get_for_model(User)
+
+    @property
+    def by_group(self):
+        return self.author_content_type == ContentType.objects.get_for_model(Group)
+
+    @property
+    def by_user(self):
+        return self.author_content_type == ContentType.objects.get_for_model(User)
+
+    @property
+    def remote_owner_id(self):
+        owner_id = self.wall_owner.remote_id
+        if isinstance(self.wall_owner, Group) and owner_id > 0:
+            owner_id *= -1
+        return owner_id
+
+    @property
+    def remote_id_short(self):
+        return self.remote_id.split('_')[1]
+
     def get_or_create_group_or_user(self, remote_id):
         if remote_id > 0:
             Model = User
@@ -270,6 +297,7 @@ class Post(WallAbstractModel):
         ordering = ['wall_owner_id', '-date']
 
     likes_type = 'post'
+    fields_required_for_update = ['post_id', 'owner_id']
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
@@ -343,7 +371,7 @@ class Post(WallAbstractModel):
     online = models.PositiveSmallIntegerField(null=True)
     reply_count = models.PositiveIntegerField(null=True)
 
-    objects = models.Manager()
+    objects = VkontakteCRUDManager()
     remote = PostRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'get',
         'getById': 'getById',
@@ -352,22 +380,6 @@ class Post(WallAbstractModel):
         'delete': 'delete',
         'restore': 'restore',
     })
-
-    @property
-    def on_group_wall(self):
-        return self.wall_owner_content_type == ContentType.objects.get_for_model(Group)
-
-    @property
-    def on_user_wall(self):
-        return self.wall_owner_content_type == ContentType.objects.get_for_model(User)
-
-    @property
-    def by_group(self):
-        return self.author_content_type == ContentType.objects.get_for_model(Group)
-
-    @property
-    def by_user(self):
-        return self.author_content_type == ContentType.objects.get_for_model(User)
 
     def __unicode__(self):
         return '%s: %s' % (unicode(self.wall_owner), self.text)
@@ -408,18 +420,9 @@ class Post(WallAbstractModel):
 
         return super(Post, self).save(*args, **kwargs)
 
-    def get_remote_owner_id(self):
-        owner_id = self.wall_owner.remote_id
-        if isinstance(self.wall_owner, Group) and owner_id > 0:
-            owner_id *= -1
-        return owner_id
-
-    def get_remote_post_id(self):
-        return self.remote_id.split('_')[1]
-
     def prepare_create_params(self, **kwargs):
-        return {
-            'owner_id': self.get_remote_owner_id(),
+        kwargs.update({
+            'owner_id': self.remote_owner_id,
             'friends_only': kwargs.get('friends_only', 0),
             'from_group': kwargs.get('from_group', ''),
             'message': self.text,
@@ -431,20 +434,21 @@ class Post(WallAbstractModel):
             'long': kwargs.get('long', ''),
             'place_id': kwargs.get('place_id', ''),
             'post_id': kwargs.get('post_id', '')
-        }
+        })
+        return kwargs
 
-    def prepare_update_params(self):
-        return self.prepare_create_params(post_id=self.get_remote_post_id())
+    def prepare_update_params(self, **kwargs):
+        return self.prepare_create_params(post_id=self.remote_id_short, **kwargs)
 
-    def prepare_delete_restore_params(self):
+    def prepare_delete_params(self):
         return {
-            'owner_id': self.get_remote_owner_id(),
-            'post_id': self.get_remote_post_id()
+            'owner_id': self.remote_owner_id,
+            'post_id': self.remote_id_short
         }
 
     def parse_remote_id_from_response(self, response):
         if response:
-            return '%s_%s' % (self.get_remote_owner_id(), response['post_id'])
+            return '%s_%s' % (self.remote_owner_id, response['post_id'])
         return None
 
     def parse(self, response):
@@ -466,7 +470,7 @@ class Post(WallAbstractModel):
 
         super(Post, self).parse(response)
 
-        self.remote_id = '%s%s_%s' % (('-' if self.by_group else ''), self.wall_owner.remote_id, self.remote_id)
+        self.remote_id = '%s%s_%s' % (('-' if self.on_group_wall else ''), self.wall_owner.remote_id, self.remote_id)
 
     def fetch_comments(self, *args, **kwargs):
         return Comment.remote.fetch_post(post=self, *args, **kwargs)
@@ -653,6 +657,7 @@ class Comment(WallAbstractModel):
 
     remote_pk_field = 'cid'
     likes_type = 'comment'
+    fields_required_for_update = ['comment_id', 'post_id', 'owner_id']
 
     post = models.ForeignKey(Post, verbose_name=u'Пост', related_name='wall_comments')
 
@@ -688,7 +693,7 @@ class Comment(WallAbstractModel):
 
     like_users = models.ManyToManyField(User, related_name='like_comments')
 
-    objects = models.Manager()
+    objects = VkontakteCRUDManager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'getComments',
         'create': 'addComment',
@@ -716,42 +721,35 @@ class Comment(WallAbstractModel):
 
         return super(Comment, self).save(*args, **kwargs)
 
-    def get_remote_owner_id(self):
-        owner_id = self.wall_owner.remote_id
-        if isinstance(self.wall_owner, Group) and owner_id > 0:
-            owner_id *= -1
-        return owner_id
-
-    def get_remote_comment_id(self):
-        return self.remote_id.split('_')[1]
-
     def prepare_create_params(self, **kwargs):
-        return {
-            'owner_id': self.get_remote_owner_id(),
-            'post_id': self.post.get_remote_post_id(),
+        kwargs.update({
+            'owner_id': self.remote_owner_id,
+            'post_id': self.post.remote_id_short,
             'from_group': kwargs.get('from_group', ''),
             'text': self.text,
             'attachments': kwargs.get('attachments', ''),
             'reply_to_comment': self.reply_for.id if self.reply_for else '',
-        }
+        })
+        return kwargs
 
     def prepare_update_params(self, **kwargs):
-        return {
-            'owner_id': self.get_remote_owner_id(),
-            'comment_id': self.get_remote_comment_id(),
+        kwargs.update({
+            'owner_id': self.remote_owner_id,
+            'comment_id': self.remote_id_short,
             'message': self.text,
             'attachments': kwargs.get('attachments', ''),
-        }
+        })
+        return kwargs
 
-    def prepare_delete_restore_params(self):
+    def prepare_delete_params(self):
         return {
-            'owner_id': self.get_remote_owner_id(),
-            'comment_id': self.get_remote_comment_id()
+            'owner_id': self.remote_owner_id,
+            'comment_id': self.remote_id_short
         }
 
     def parse_remote_id_from_response(self, response):
         if response:
-            return '%s_%s' % (self.get_remote_owner_id(), response['cid'])
+            return '%s_%s' % (self.remote_owner_id, response['cid'])
         return None
 
     def parse(self, response):
