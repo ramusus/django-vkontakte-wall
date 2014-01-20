@@ -2,11 +2,8 @@ language: python
 python:
   - "2.7"
 env:
-  - DJANGO=1.4 DB=mysql
   - DJANGO=1.4 DB=postgres
-  - DJANGO=1.5 DB=mysql
   - DJANGO=1.5 DB=postgres
-  - DJANGO=1.6 DB=mysql
   - DJANGO=1.6 DB=postgres
 before_script:
   - mysql -e 'create database django;'

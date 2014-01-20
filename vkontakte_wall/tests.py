@@ -25,12 +25,6 @@ USER_AUTHOR_ID = 201164356
 GROUP2_ID = 22522055
 GROUP2_POST_WITH_MANY_LIKES_ID = '-22522055_484919'
 
-# TRAVIS_USER_ID = 201164356
-# TR_POST_ID = '201164356_15'
-# POST_WITH_COMMENT = '-59154616_332'
-# POST_OWN_ID = '-59154616_330'
-
-
 class VkontakteWallTest(TestCase):
 
     def setUp(self):
@@ -398,17 +392,33 @@ class VkontakteWallTest(TestCase):
         self.assertNotEqual(len(post.remote_id), 0)
         assert_local_equal_to_remote(post)
 
+        # create by manager
+        post = Post.objects.create(text='Test message created by manager', wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [post]
+
+        self.assertEqual(Post.objects.count(), 2)
+        self.assertNotEqual(len(post.remote_id), 0)
+        assert_local_equal_to_remote(post)
+
+        # create by manager on user's wall
+        post = Post.objects.create(text='Test message', wall_owner=user, author=user, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [post]
+
+        self.assertEqual(Post.objects.count(), 3)
+        self.assertNotEqual(len(post.remote_id), 0)
+        assert_local_equal_to_remote(post)
+
         # update
         post.text = 'Test message updated'
         post.save(commit_remote=True)
 
-        self.assertEqual(Post.objects.count(), 1)
+        self.assertEqual(Post.objects.count(), 3)
         assert_local_equal_to_remote(post)
 
         # delete
         post.delete(commit_remote=True)
 
-        self.assertEqual(Post.objects.count(), 1)
+        self.assertEqual(Post.objects.count(), 3)
         self.assertTrue(post.archived)
         self.assertEqual(Post.remote.fetch(ids=[post.remote_id]).count(), 0)
 
@@ -416,15 +426,7 @@ class VkontakteWallTest(TestCase):
         post.restore(commit_remote=True)
         self.assertFalse(post.archived)
 
-        self.assertEqual(Post.objects.count(), 1)
-        assert_local_equal_to_remote(post)
-
-        # create by manager
-        post = Post.objects.create(text='Test message created by manager', wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
-        self.objects_to_delete += [post]
-
-        self.assertEqual(Post.objects.count(), 2)
-        self.assertNotEqual(len(post.remote_id), 0)
+        self.assertEqual(Post.objects.count(), 3)
         assert_local_equal_to_remote(post)
 
     def test_comment_crud_methods(self):
@@ -449,17 +451,25 @@ class VkontakteWallTest(TestCase):
         self.assertNotEqual(len(comment.remote_id), 0)
         assert_local_equal_to_remote(comment)
 
+        # create by manager
+        comment = Comment.objects.create(text='Test comment created by manager', post=post, wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [comment]
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
+
         # update
         comment.text = 'Test comment updated'
         comment.save(commit_remote=True)
 
-        self.assertEqual(Comment.objects.count(), 1)
+        self.assertEqual(Comment.objects.count(), 3)
         assert_local_equal_to_remote(comment)
 
         # delete
         comment.delete(commit_remote=True)
 
-        self.assertEqual(Comment.objects.count(), 1)
+        self.assertEqual(Comment.objects.count(), 3)
         self.assertTrue(comment.archived)
         self.assertEqual(Comment.remote.fetch_post(post=comment.post).filter(remote_id=comment.remote_id).count(), 0)
 
@@ -467,13 +477,5 @@ class VkontakteWallTest(TestCase):
         comment.restore(commit_remote=True)
         self.assertFalse(comment.archived)
 
-        self.assertEqual(Comment.objects.count(), 1)
-        assert_local_equal_to_remote(comment)
-
-        # create by manager
-        comment = Comment.objects.create(text='Test comment created by manager', post=post, wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
-        self.objects_to_delete += [comment]
-
-        self.assertEqual(Comment.objects.count(), 2)
-        self.assertNotEqual(len(comment.remote_id), 0)
+        self.assertEqual(Comment.objects.count(), 3)
         assert_local_equal_to_remote(comment)
