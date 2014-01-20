@@ -463,13 +463,13 @@ class VkontakteWallTest(TestCase):
         comment.text = 'Test comment updated'
         comment.save(commit_remote=True)
 
-        self.assertEqual(Comment.objects.count(), 3)
+        self.assertEqual(Comment.objects.count(), 2)
         assert_local_equal_to_remote(comment)
 
         # delete
         comment.delete(commit_remote=True)
 
-        self.assertEqual(Comment.objects.count(), 3)
+        self.assertEqual(Comment.objects.count(), 2)
         self.assertTrue(comment.archived)
         self.assertEqual(Comment.remote.fetch_post(post=comment.post).filter(remote_id=comment.remote_id).count(), 0)
 
@@ -477,5 +477,5 @@ class VkontakteWallTest(TestCase):
         comment.restore(commit_remote=True)
         self.assertFalse(comment.archived)
 
-        self.assertEqual(Comment.objects.count(), 3)
+        self.assertEqual(Comment.objects.count(), 2)
         assert_local_equal_to_remote(comment)
