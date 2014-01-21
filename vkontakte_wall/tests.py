@@ -203,6 +203,10 @@ class VkontakteWallTest(TestCase):
 
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
+        # in Django 1.4 travis:
+        # IntegrityError: insert or update on table "vkontakte_wall_post_like_users" violates foreign key constraint "post_id_refs_id_df0b31a3"
+        # DETAIL:  Key (post_id)=(1) is not present in table "vkontakte_wall_post".
+        post.save()
 
         self.assertEqual(post.like_users.count(), 0)
         self.assertEqual(post.likes, 0)
