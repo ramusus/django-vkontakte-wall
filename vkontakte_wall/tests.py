@@ -203,37 +203,32 @@ class VkontakteWallTest(TestCase):
 
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
-        # in Django 1.4 travis:
-        # IntegrityError: insert or update on table "vkontakte_wall_post_like_users" violates foreign key constraint "post_id_refs_id_df0b31a3"
-        # DETAIL:  Key (post_id)=(1) is not present in table "vkontakte_wall_post".
-        post.save()
 
         self.assertEqual(post.like_users.count(), 0)
         self.assertEqual(post.likes, 0)
 
-        User.objects.all().delete()
+        users_initial = User.objects.count()
 
         users = post.fetch_likes(all=True)
 
         self.assertTrue(post.likes > 120)
         self.assertEqual(post.likes, len(users))
-        self.assertEqual(post.likes, User.objects.count())
+        self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
 
         # try to fetch again
         likes = post.likes
-        User.objects.all().delete()
         users = post.fetch_likes(all=True)
 
         self.assertEqual(post.likes, likes)
         self.assertEqual(post.likes, len(users))
-        self.assertEqual(post.likes, User.objects.count())
+        self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
 
         # try to fetch more than 1000 likes
         group2 = GroupFactory(remote_id=GROUP2_ID)
         post2 = PostFactory(remote_id=GROUP2_POST_WITH_MANY_LIKES_ID, wall_owner=group2)
-        User.objects.all().delete()
+        users_initial = User.objects.count()
 
         self.assertEqual(post2.like_users.count(), 0)
         self.assertEqual(post2.likes, 0)
@@ -242,7 +237,7 @@ class VkontakteWallTest(TestCase):
 
         self.assertTrue(post2.likes > 1000)
         self.assertEqual(post2.likes, len(users))
-        self.assertEqual(post2.likes, User.objects.count())
+        self.assertEqual(post2.likes, User.objects.count() - users_initial)
         self.assertEqual(post2.likes, post2.like_users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory(remote_id=i) for i in ids]]))
