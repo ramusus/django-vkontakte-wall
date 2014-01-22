@@ -2,7 +2,7 @@
 from django.test import TestCase
 from models import Post, Comment
 from factories import PostFactory, UserFactory, GroupFactory, CommentFactory
-from vkontakte_users.models import User
+from vkontakte_users.factories import User
 from datetime import datetime
 import simplejson as json
 import mock
@@ -24,6 +24,11 @@ USER_AUTHOR_ID = 201164356
 
 GROUP2_ID = 22522055
 GROUP2_POST_WITH_MANY_LIKES_ID = '-22522055_484919'
+
+def user_fetch_mock(ids, **kwargs):
+    users = [User.objects.get(remote_id=id) if User.objects.filter(remote_id=id).count() == 1 else UserFactory(remote_id=id) for id in ids]
+    ids = [user.id for user in users]
+    return User.objects.filter(id__in=ids)
 
 class VkontakteWallTest(TestCase):
 
@@ -198,7 +203,7 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(post.likes > 120)
         self.assertEqual(post.likes, post.like_users.count())
 
-    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory(remote_id=i) for i in ids]]))
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_likes(self, *args, **kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
@@ -240,7 +245,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post2.likes, User.objects.count() - users_initial)
         self.assertEqual(post2.likes, post2.like_users.count())
 
-    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory(remote_id=i) for i in ids]]))
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_comment_likes(self, *args, **kwargs):
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
