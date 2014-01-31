@@ -104,6 +104,15 @@ class VkontakteWallTest(TestCase):
         posts = group.fetch_posts(after=after)
         self.assertTrue(len(posts) == Post.objects.count() == 10)
 
+        # testing `before` parameter
+        before = Post.objects.order_by('-date')[5].date
+
+        Post.objects.all().delete()
+        self.assertEqual(Post.objects.count(), 0)
+
+        posts = group.fetch_posts(before=before, after=after)
+        self.assertTrue(len(posts) == Post.objects.count() == 5)
+
         # testing `after` and `all` parameters and returning less than all scope of posts
         Post.objects.all().delete()
         self.assertEqual(Post.objects.count(), 0)
@@ -163,6 +172,15 @@ class VkontakteWallTest(TestCase):
 
         comments = post.fetch_comments(sort='desc', after=after, count=100)
         self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
+
+        # testing `before` parameter
+        before = Comment.objects.order_by('-date')[5].date
+
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = post.fetch_comments(sort='desc', before=before, after=after)
+        self.assertTrue(len(comments) == Comment.objects.count() == 85)
 
         # testing `after` and `all` parameters
         Comment.objects.all().delete()

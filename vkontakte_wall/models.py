@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager
+from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -20,7 +20,33 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
 class VkontakteWallManager(VkontakteManager):
-    pass
+
+    def fetch(self, *args, **kwargs):
+        '''
+        Retrieve and save object to local DB
+        Return queryset with respect to parameters:
+         * 'after' - excluding all items before.
+         * 'before' - excluding all items after.
+        '''
+        after = kwargs.pop('after', None)
+        before = kwargs.pop('before', None)
+
+        result = self.get(*args, **kwargs)
+        if isinstance(result, list):
+            instances = self.model.objects.none()
+            for instance in result:
+
+                if after and after > getattr(instance, 'date'):
+                    break
+
+                if before and before < getattr(instance, 'date'):
+                    continue
+
+                instance = self.get_or_create_from_instance(instance)
+                instances |= instance.__class__.objects.filter(pk=instance.pk)
+            return instances
+        else:
+            raise VkontakteContentError("Vkontakte returned not a list as expected, but %s, args: %s, kwargs: %s" % (type(result), args, kwargs))
 
 class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
 
@@ -46,11 +72,13 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
             return super(PostRemoteManager, self).parse_response_dict(resource, extra_fields)
 
     @fetch_all(default_count=100)
-    def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, after=None, **kwargs):
+    def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, before=None, after=None, **kwargs):
         if filter not in ['owner', 'others', 'all']:
             raise ValueError("Attribute 'fiter' has illegal value '%s'" % filter)
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
+        if before and not after:
+            raise ValueError("Attribute `before` should be specified with attribute `after`")
 
         kwargs['owner_id'] = owner.remote_id
         kwargs['filter'] = filter
@@ -59,8 +87,9 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         kwargs.update({'count': count})
         if isinstance(owner, Group):
             kwargs['owner_id'] *= -1
-        if after:
-            kwargs['_after'] = after
+        # special parameters
+        kwargs['after'] = after
+        kwargs['before'] = before
 
         log.debug('Fetching posts of owner "%s", offset %d' % (owner, offset))
 
@@ -69,6 +98,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
     def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
         '''
         Old method via parser
+        TODO: `before` parameter not implemented
         '''
         post_data = {
             'al': 1,
@@ -115,13 +145,15 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 class CommentRemoteManager(VkontakteWallManager):
 
     @fetch_all(default_count=100)
-    def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, after=None, **kwargs):
+    def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, before=None, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
         if sort not in ['asc', 'desc']:
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
-        if sort == 'asc' and after:
-            raise ValueError("Attribute sort should be equal to 'desc' with defined `after` attribute")
+        if sort == 'asc' and (after or before):
+            raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` or `before` attributes")
+        if before and not after:
+            raise ValueError("Attribute `before` should be specified with attribute `after`")
 
         # owner_id
         # идентификатор пользователя, на чьей стене находится запись, к которой необходимо получить комментарии. Если параметр не задан, то он считается равным идентификатору текущего пользователя.
@@ -152,8 +184,8 @@ class CommentRemoteManager(VkontakteWallManager):
         # Данный метод может возвращать разные результаты в зависимости от используемой версии. Передавайте v=4.4 для того, чтобы получать аттачи в комментариях в виде объектов, а не ссылок.
 
         kwargs['extra_fields'] = {'post_id': post.id}
-        if after:
-            kwargs['_after'] = after
+        kwargs['before'] = before
+        kwargs['after'] = after
 
         log.debug('Fetching comments to post "%s" of owner "%s", offset %d' % (post.remote_id, post.wall_owner, offset))
 
