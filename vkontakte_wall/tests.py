@@ -122,6 +122,18 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Post.objects.count(), 30)
         self.assertEqual(len(posts), 10)
 
+    def test_fetch_group_wall_before(self):
+        # TODO: finish test
+        group = GroupFactory(remote_id=34384434, screen_name='topmelody')
+
+        before = datetime(2013, 10, 3)
+        after = datetime(2013, 10, 1)
+
+        posts = group.fetch_posts(all=True, before=before, after=after, filter='owner')
+
+#        print posts
+#        self.assertTrue(len(posts) == Post.objects.count() == 100)
+
     def test_fetch_group_open_wall(self):
 
         group = GroupFactory(remote_id=OPEN_WALL_GROUP_ID, screen_name=OPEN_WALL_GROUP_SCREEN_NAME)

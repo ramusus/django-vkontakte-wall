@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 #from datetime import datetime
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
+from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -19,37 +19,7 @@ log = logging.getLogger('vkontakte_wall')
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 
-class VkontakteWallManager(VkontakteManager):
-
-    @transaction.commit_on_success
-    def fetch(self, *args, **kwargs):
-        '''
-        Retrieve and save object to local DB
-        Return queryset with respect to parameters:
-         * 'after' - excluding all items before.
-         * 'before' - excluding all items after.
-        '''
-        after = kwargs.pop('after', None)
-        before = kwargs.pop('before', None)
-
-        result = self.get(*args, **kwargs)
-        if isinstance(result, list):
-            instances = self.model.objects.none()
-            for instance in result:
-
-                if after and after > getattr(instance, 'date'):
-                    break
-
-                if before and before < getattr(instance, 'date'):
-                    continue
-
-                instance = self.get_or_create_from_instance(instance)
-                instances |= instance.__class__.objects.filter(pk=instance.pk)
-            return instances
-        else:
-            raise VkontakteContentError("Vkontakte returned not a list as expected, but %s, args: %s, kwargs: %s" % (type(result), args, kwargs))
-
-class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin):
+class PostRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMixin):
 
     response_instances_fieldname = 'wall'
 
@@ -79,10 +49,9 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
             raise ValueError("Attribute 'fiter' has illegal value '%s'" % filter)
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
-
         if before and not after:
             raise ValueError("Attribute `before` should be specified with attribute `after`")
-        elif before < after:
+        if before and before < after:
             raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         kwargs['owner_id'] = owner.remote_id
@@ -148,7 +117,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
             return group.wall_posts.all()
 
 
-class CommentRemoteManager(VkontakteWallManager):
+class CommentRemoteManager(VkontakteTimelineManager):
 
     @transaction.commit_on_success
     @fetch_all(default_count=100)
@@ -159,10 +128,9 @@ class CommentRemoteManager(VkontakteWallManager):
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
         if sort == 'asc' and (after or before):
             raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` or `before` attributes")
-
         if before and not after:
             raise ValueError("Attribute `before` should be specified with attribute `after`")
-        elif before < after:
+        if before and before < after:
             raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         # owner_id
