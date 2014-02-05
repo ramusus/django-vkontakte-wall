@@ -79,8 +79,11 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
             raise ValueError("Attribute 'fiter' has illegal value '%s'" % filter)
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
+
         if before and not after:
             raise ValueError("Attribute `before` should be specified with attribute `after`")
+        elif before < after:
+            raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         kwargs['owner_id'] = owner.remote_id
         kwargs['filter'] = filter
@@ -156,8 +159,11 @@ class CommentRemoteManager(VkontakteWallManager):
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
         if sort == 'asc' and (after or before):
             raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` or `before` attributes")
+
         if before and not after:
             raise ValueError("Attribute `before` should be specified with attribute `after`")
+        elif before < after:
+            raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         # owner_id
         # идентификатор пользователя, на чьей стене находится запись, к которой необходимо получить комментарии. Если параметр не задан, то он считается равным идентификатору текущего пользователя.
