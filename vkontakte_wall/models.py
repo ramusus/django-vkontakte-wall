@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from django.db import models
+from django.db import models, transaction
 from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
@@ -21,6 +21,7 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 
 class VkontakteWallManager(VkontakteManager):
 
+    @transaction.commit_on_success
     def fetch(self, *args, **kwargs):
         '''
         Retrieve and save object to local DB
@@ -71,6 +72,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
         else:
             return super(PostRemoteManager, self).parse_response_dict(resource, extra_fields)
 
+    @transaction.commit_on_success
     @fetch_all(default_count=100)
     def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, before=None, after=None, **kwargs):
         if filter not in ['owner', 'others', 'all']:
@@ -95,6 +97,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
         return self.fetch(**kwargs)
 
+    @transaction.commit_on_success
     def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
         '''
         Old method via parser
@@ -144,6 +147,7 @@ class PostRemoteManager(VkontakteWallManager, ParseUsersMixin, ParseGroupsMixin)
 
 class CommentRemoteManager(VkontakteWallManager):
 
+    @transaction.commit_on_success
     @fetch_all(default_count=100)
     def fetch_post(self, post, offset=0, count=100, sort='asc', need_likes=True, preview_length=0, before=None, after=None, **kwargs):
         if count > 100:
@@ -191,6 +195,7 @@ class CommentRemoteManager(VkontakteWallManager):
 
         return self.fetch(**kwargs)
 
+    @transaction.commit_on_success
     def fetch_group_post_parser(self, post, offset=0, count=None):  # jkj, after=None, only_new=False):
         '''
         Old method via parser
@@ -306,6 +311,7 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
         self.save()
         return self.like_users.all()
 
+    @transaction.commit_on_success
     @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
@@ -507,12 +513,14 @@ class Post(WallAbstractModel):
     def fetch_comments(self, *args, **kwargs):
         return Comment.remote.fetch_post(post=self, *args, **kwargs)
 
+    @transaction.commit_on_success
     def fetch_likes(self, source='api', *args, **kwargs):
         if source == 'api':
             return super(Post, self).fetch_likes(*args, **kwargs)
         else:
             return self.fetch_likes_parser(*args, **kwargs)
 
+    @transaction.commit_on_success
     def fetch_likes_parser(self, offset=0):
         '''
         Update and save fields:
@@ -566,6 +574,7 @@ class Post(WallAbstractModel):
         else:
             return self.like_users.all()
 
+    @transaction.commit_on_success
     def fetch_reposts(self, source='api', *args, **kwargs):
         if source == 'api':
             return self.fetch_reposts_api(*args, **kwargs)
@@ -577,6 +586,7 @@ class Post(WallAbstractModel):
         self.save()
         return self.repost_users.all()
 
+    @transaction.commit_on_success
     @fetch_all(return_all=update_count_and_get_reposts, default_count=1000)
     def fetch_reposts_api(self, offset=0, count=1000, *args, **kwargs):
         if count > 1000:
@@ -629,6 +639,7 @@ class Post(WallAbstractModel):
 
         return self.repost_users.all()
 
+    @transaction.commit_on_success
     def fetch_reposts_parser(self, offset=0):
         '''
         OLD method via parser, may works incorrect
