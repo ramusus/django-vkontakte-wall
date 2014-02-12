@@ -127,7 +127,7 @@ class CommentRemoteManager(VkontakteTimelineManager):
         if sort not in ['asc', 'desc']:
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
         if sort == 'asc' and (after or before):
-            raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` or `before` attributes")
+            raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` attribute")
         if before and not after:
             raise ValueError("Attribute `before` should be specified with attribute `after`")
         if before and before < after:
@@ -595,10 +595,8 @@ class Post(WallAbstractModel):
             user_id = post.get('from_id')
             # TODO: implement schema for group reposting support with links to texts via though model
             if user_id and user_id > 0:
-                try:
-                    user_instance = User.objects.get(remote_id=user_id)
-                except User.DoesNotExist:
-                    user_instance = User.objects.create(remote_id=user_id)
+                user_instance, created = User.objects.get_or_create(remote_id=user_id)
+                if created:
                     if user_id in profiles:
                         user_instance.parse(profiles[user_id])
                         user_instance.save()
