@@ -202,6 +202,24 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
+    def test_fetch_group_post_comments_bad_unicode(self, *args, **kwargs):
+        # http://vk.com/wall-23482909_195292
+        # UnicodeDecodeError: 'utf8' codec can't decode byte 0xca in position 0: invalid continuation byte
+        group = GroupFactory(remote_id=23482909)
+        post = PostFactory(remote_id='-23482909_195292', wall_owner=group)
+
+        comments = post.fetch_comments(sort='desc', count=100)
+        self.assertTrue(comments.count() > 0)
+
+        # http://vk.com/wall-41330561_73352
+        # UnicodeDecodeError: 'utf8' codec can't decode byte 0xd3 in position 0: invalid continuation byte
+        group = GroupFactory(remote_id=41330561)
+        post = PostFactory(remote_id='-41330561_73352', wall_owner=group)
+
+        comments = post.fetch_comments(sort='desc', count=100)
+        self.assertTrue(comments.count() > 0)
+
+    @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
     def test_fetch_post_reposts(self, *args, **kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
