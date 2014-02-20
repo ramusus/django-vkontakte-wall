@@ -3,6 +3,7 @@ from django.test import TestCase
 from models import Post, Comment
 from factories import PostFactory, UserFactory, GroupFactory, CommentFactory
 from vkontakte_users.factories import User
+from vkontakte_users.tests import user_fetch_mock
 from datetime import datetime
 import simplejson as json
 import mock
@@ -22,13 +23,8 @@ GROUP_CRUD_ID = 59154616
 POST_CRUD_ID = '-59154616_366'
 USER_AUTHOR_ID = 201164356
 
-GROUP2_ID = 22522055
-GROUP2_POST_WITH_MANY_LIKES_ID = '-22522055_484919'
-
-def user_fetch_mock(ids, **kwargs):
-    users = [User.objects.get(remote_id=id) if User.objects.filter(remote_id=id).count() == 1 else UserFactory(remote_id=id) for id in ids]
-    ids = [user.id for user in users]
-    return User.objects.filter(id__in=ids)
+GROUP2_ID = 10362317
+GROUP2_POST_WITH_MANY_LIKES_ID = '-10362317_236186'
 
 class VkontakteWallTest(TestCase):
 
@@ -270,20 +266,22 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
 
-        # try to fetch more than 1000 likes
-        group2 = GroupFactory(remote_id=GROUP2_ID)
-        post2 = PostFactory(remote_id=GROUP2_POST_WITH_MANY_LIKES_ID, wall_owner=group2)
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
+    def test_fetch_group_post_many_likes(self, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP2_ID)
+        post = PostFactory(remote_id=GROUP2_POST_WITH_MANY_LIKES_ID, wall_owner=group)
         users_initial = User.objects.count()
 
-        self.assertEqual(post2.like_users.count(), 0)
-        self.assertEqual(post2.likes, 0)
+        self.assertEqual(post.like_users.count(), 0)
+        self.assertEqual(post.likes, 0)
 
-        users = post2.fetch_likes(all=True)
+        users = post.fetch_likes(all=True)
 
-        self.assertTrue(post2.likes > 1000)
-        self.assertEqual(post2.likes, len(users))
-        self.assertEqual(post2.likes, User.objects.count() - users_initial)
-        self.assertEqual(post2.likes, post2.like_users.count())
+        self.assertTrue(post.likes > 3800)
+        self.assertEqual(post.likes, len(users))
+        self.assertEqual(post.likes, User.objects.count() - users_initial)
+        self.assertEqual(post.likes, post.like_users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_comment_likes(self, *args, **kwargs):

@@ -3,7 +3,6 @@ from django.db import models, transaction
 from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-#from datetime import datetime
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
@@ -281,7 +280,10 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
         return Model.objects.get_or_create(remote_id=abs(remote_id))
 
     def update_count_and_get_likes(self, *args, **kwargs):
-        self.likes = self.like_users.count()
+        likes_count = self.like_users.count()
+        if likes_count < self.likes:
+            log.warning('Fetched ammount of like users less, than attribute `likes` of post: %d < %d' % (likes_count, self.likes))
+        self.likes = likes_count
         self.save()
         return self.like_users.all()
 
@@ -289,8 +291,8 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
     @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
-        kwargs['likes_type'] = self.likes_type
         kwargs['offset'] = int(offset)
+        kwargs['likes_type'] = self.likes_type
         kwargs['item_id'] = self.remote_id.split('_')[1]
         kwargs['owner_id'] = self.wall_owner.remote_id
         if isinstance(self.wall_owner, Group):
@@ -306,7 +308,6 @@ class Post(WallAbstractModel):
     class Meta:
         verbose_name = u'Сообщение Вконтакте'
         verbose_name_plural = u'Сообщения Вконтакте'
-        ordering = ['wall_owner_id', '-date']
 
     likes_type = 'post'
     fields_required_for_update = ['post_id', 'owner_id']
@@ -470,6 +471,7 @@ class Post(WallAbstractModel):
             if field_name in response and 'count' in response[field_name]:
                 setattr(self, field_name, response.pop(field_name)['count'])
 
+        # TODO: may we should move this to save and keep parse queryless
         self.wall_owner = self.get_or_create_group_or_user(response.pop('to_id'))[0]
         self.author = self.get_or_create_group_or_user(response.pop('from_id'))[0]
 
@@ -668,7 +670,6 @@ class Comment(WallAbstractModel):
     class Meta:
         verbose_name = u'Коментарий сообщения Вконтакте'
         verbose_name_plural = u'Комментарии сообщений Вконтакте'
-        ordering = ['post', '-date']
 
     remote_pk_field = 'cid'
     likes_type = 'comment'
@@ -740,10 +741,10 @@ class Comment(WallAbstractModel):
         kwargs.update({
             'owner_id': self.remote_owner_id,
             'post_id': self.post.remote_id_short,
-            'from_group': kwargs.get('from_group', ''),
             'text': self.text,
-            'attachments': kwargs.get('attachments', ''),
             'reply_to_comment': self.reply_for.id if self.reply_for else '',
+            'from_group': int(kwargs.get('from_group', 0)),
+            'attachments': kwargs.get('attachments', ''),
         })
         return kwargs
 
