@@ -5,6 +5,7 @@ from factories import PostFactory, UserFactory, GroupFactory, CommentFactory
 from vkontakte_users.factories import User
 from vkontakte_users.tests import user_fetch_mock
 from datetime import datetime
+from mock import MagicMock
 import simplejson as json
 import mock
 
@@ -282,6 +283,27 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.likes, len(users))
         self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
+    def test_fetch_group_post_changing_likes(self, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP2_ID)
+        post = PostFactory(remote_id=GROUP2_POST_WITH_MANY_LIKES_ID, wall_owner=group)
+
+        ids = range(100, 200)
+        User.remote.fetch_likes_user_ids = MagicMock(side_effect=lambda **kw: ids)
+        users = post.fetch_likes(all=True)
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids).values_list('pk', flat=True))
+
+        ids = range(50, 150)
+        User.remote.fetch_likes_user_ids = MagicMock(side_effect=lambda **kw: ids)
+        users = post.fetch_likes(all=True)
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids).values_list('pk', flat=True))
+
+        ids = range(0, 30)
+        User.remote.fetch_likes_user_ids = MagicMock(side_effect=lambda **kw: ids)
+        users = post.fetch_likes(all=True)
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids).values_list('pk', flat=True))
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_comment_likes(self, *args, **kwargs):

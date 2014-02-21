@@ -279,28 +279,27 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
 
         return Model.objects.get_or_create(remote_id=abs(remote_id))
 
-    def update_count_and_get_likes(self, *args, **kwargs):
-        likes_count = self.like_users.count()
-        if likes_count < self.likes:
-            log.warning('Fetched ammount of like users less, than attribute `likes` of post: %d < %d' % (likes_count, self.likes))
-        self.likes = likes_count
-        self.save()
-        return self.like_users.all()
-
     @transaction.commit_on_success
-    @fetch_all(return_all=update_count_and_get_likes, default_count=1000)
-    def fetch_likes(self, offset=0, *args, **kwargs):
+    def fetch_likes(self, *args, **kwargs):
 
-        kwargs['offset'] = int(offset)
+#        kwargs['offset'] = int(kwargs.pop('offset', 0))
         kwargs['likes_type'] = self.likes_type
         kwargs['item_id'] = self.remote_id.split('_')[1]
         kwargs['owner_id'] = self.wall_owner.remote_id
         if isinstance(self.wall_owner, Group):
             kwargs['owner_id'] *= -1
 
-        log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.wall_owner, offset))
+        log.debug('Fetching likes of %s %s of owner "%s"' % (self._meta.module_name, self.remote_id, self.wall_owner))
 
         users = User.remote.fetch_instance_likes(self, *args, **kwargs)
+
+        # update self.likes
+        likes_count = self.like_users.count()
+        if likes_count < self.likes:
+            log.warning('Fetched ammount of like users less, than attribute `likes` of post "%s": %d < %d' % (self.remote_id, likes_count, self.likes))
+        self.likes = likes_count
+        self.save()
+
         return users
 
 
