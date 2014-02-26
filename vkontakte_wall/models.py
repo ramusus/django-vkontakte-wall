@@ -565,7 +565,7 @@ class Post(WallAbstractModel):
         # update self.likes
         reposts_count = self.repost_users.count()
         if reposts_count < self.reposts:
-            log.warning('Fetched ammount of like users less, than attribute `likes` of post "%s": %d < %d' % (self.remote_id, likes_count, self.likes))
+            log.warning('Fetched ammount of repost users less, than attribute `reposts` of post "%s": %d < %d' % (self.remote_id, reposts_count, self.reposts))
         self.reposts = reposts_count
         self.save()
 
