@@ -556,14 +556,23 @@ class Post(WallAbstractModel):
         else:
             return self.fetch_reposts_parser(*args, **kwargs)
 
-    def update_count_and_get_reposts(self, *args, **kwargs):
-        self.reposts = self.repost_users.count()
-        self.save()
-        return self.repost_users.all()
-
     @transaction.commit_on_success
-    @fetch_all(return_all=update_count_and_get_reposts, default_count=1000)
-    def fetch_reposts_api(self, offset=0, count=1000, *args, **kwargs):
+    def fetch_reposts_api(self, *args, **kwargs):
+        # TODO: implement schema for group reposting support with links to texts via though model
+
+        users = self.fetch_instance_reposts(*args, **kwargs)
+
+        # update self.likes
+        reposts_count = self.repost_users.count()
+        if reposts_count < self.reposts:
+            log.warning('Fetched ammount of like users less, than attribute `likes` of post "%s": %d < %d' % (self.remote_id, likes_count, self.likes))
+        self.reposts = reposts_count
+        self.save()
+
+        return users
+
+    @fetch_all(default_count=1000)
+    def fetch_repost_items(self, offset=0, count=1000, *args, **kwargs):
         if count > 1000:
             raise ValueError("Parameter 'count' can not be more than 1000")
 
@@ -584,33 +593,62 @@ class Post(WallAbstractModel):
         # положительное число, по умолчанию 20, максимальное значение 100
         kwargs['count'] = int(count)
 
-        if offset == 0:
-            self.repost_users.clear()
-
-        log.debug('Fetching reposts of post ID=%s of owner "%s", offset %d' % (self.remote_id, self.wall_owner, offset))
+        log.debug('Fetching repost users ids of post %s, offset %d' % (self.remote_id, offset))
 
         response = api_call('wall.getReposts', **kwargs)
-        new_users_ids = []
-        profiles = dict([(profile['uid'], profile) for profile in response['profiles']])
-        for post in response['items']:
-            user_id = post.get('from_id')
+        return response['items']
+
+#         new_users_ids = []
+#         profiles = dict([(profile['uid'], profile) for profile in response['profiles']])
+#         for post in posts:
+#             user_id = post.get('from_id')
             # TODO: implement schema for group reposting support with links to texts via though model
-            if user_id and user_id > 0:
-                user_instance, created = User.objects.get_or_create(remote_id=user_id)
-                if created:
-                    if user_id in profiles:
-                        user_instance.parse(profiles[user_id])
-                        user_instance.save()
-                    else:
-                        new_users_ids += [user_id]
+#             if user_id and user_id > 0:
+#                 user_instance, created = User.objects.get_or_create(remote_id=user_id)
+#                 if created:
+#                     if user_id in profiles:
+#                         user_instance.parse(profiles[user_id])
+#                         user_instance.save()
+#                     else:
+#                         new_users_ids += [user_id]
+#
+#                 self.repost_users.add(user_instance)
+#
+#         # update info of new users, that was not found in 'profiles' dict
+#         if new_users_ids:
+#             User.remote.fetch(ids=new_users_ids)
 
-                self.repost_users.add(user_instance)
+    def fetch_instance_reposts(self, *args, **kwargs):
 
-        # update info of new users, that was not found in 'profiles' dict
-        if new_users_ids:
-            User.remote.fetch(ids=new_users_ids)
+        posts = self.fetch_repost_items(*args, **kwargs)
+        if not posts:
+            return self.repost_users.none()
 
-        return self.repost_users.all()
+        ids = [post.get('from_id') for post in posts]
+
+        # fetch users
+        users = User.remote.fetch(ids=ids, only_expired=True)
+
+        instance = self
+        # rest of code the same as for fetch_likes in vkontakte_users app
+        m2m_field_name = kwargs.pop('m2m_field_name', 'repost_users')
+        m2m_model = getattr(instance, m2m_field_name).through
+        try:
+            rel_field_name = [field.name for field in m2m_model._meta.local_fields if field.name not in ['id','user']][0]
+        except IndexError:
+            raise ImproperlyConfigured("Impossible to find name of relation attribute for instance %s in m2m like users table" % instance)
+
+        ids_current = m2m_model.objects.filter(**{rel_field_name: instance}).values_list('user_id', flat=True)
+        ids_new = users.values_list('pk', flat=True)
+        ids_left = set(ids_current).difference(set(ids_new))
+        ids_entered = set(ids_new).difference(set(ids_current))
+
+        # delete left
+        m2m_model.objects.filter(**{'user_id__in': ids_left, rel_field_name: instance}).delete()
+        # make entered
+        m2m_model.objects.bulk_create([m2m_model(**{'user_id': user_pk, rel_field_name: instance}) for user_pk in ids_entered])
+
+        return users
 
     @transaction.commit_on_success
     def fetch_reposts_parser(self, offset=0):

@@ -16,6 +16,7 @@ GROUP_ID = 16297716
 GROUP_SCREEN_NAME = 'cocacola'
 GROUP_POST_ID = '-16297716_126261'
 GROUP_COMMENT_ID = '-16297716_126262'
+GROUP_POST_WITH_MANY_REPOSTS_ID = '-16297716_263109'
 
 OPEN_WALL_GROUP_ID = 19391365
 OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
@@ -283,6 +284,23 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.likes, len(users))
         self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
+    def test_fetch_group_post_many_reposts(self, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id=GROUP_POST_WITH_MANY_REPOSTS_ID, wall_owner=group)
+        users_initial = User.objects.count()
+
+        self.assertEqual(post.repost_users.count(), 0)
+        self.assertEqual(post.reposts, 0)
+
+        users = post.fetch_reposts(all=True)
+
+        self.assertTrue(post.reposts > 2500)
+        self.assertEqual(post.reposts, len(users))
+        self.assertEqual(post.reposts, User.objects.count() - users_initial)
+        self.assertEqual(post.reposts, post.repost_users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_changing_likes(self, *args, **kwargs):
