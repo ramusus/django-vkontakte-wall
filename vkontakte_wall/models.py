@@ -624,7 +624,7 @@ class Post(WallAbstractModel):
         if not posts:
             return self.repost_users.none()
 
-        ids = [post.get('from_id') for post in posts]
+        ids = [post.get('from_id') for post in posts if post.get('from_id') > 0]
 
         # fetch users
         users = User.remote.fetch(ids=ids, only_expired=True)
