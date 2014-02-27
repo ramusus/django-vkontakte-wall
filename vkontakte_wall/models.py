@@ -3,6 +3,7 @@ from django.db import models, transaction
 from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.conf import settings
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
@@ -702,6 +703,12 @@ class Post(WallAbstractModel):
         else:
             return self.repost_users.all()
 
+    def fetch_statistic(self, *args, **kwargs):
+        if 'vkontakte_wall_statistic' not in settings.INSTALLED_APPS:
+            raise ImproperlyConfigured("Application 'vkontakte_wall_statistic' not in INSTALLED_APPS")
+
+        from vkontakte_wall_statistic.models import PostStatistic
+        return PostStatistic.remote.fetch(post=self, *args, **kwargs)
 
 class Comment(WallAbstractModel):
     class Meta:
