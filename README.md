@@ -43,10 +43,10 @@ Django Vkontakte Wall
 * [wall.delete](http://vk.com/dev/wall.delete) – удаляет запись со стены;
 * [wall.restore](http://vk.com/dev/wall.restore) – восстанавливает удаленную запись на стене пользователя;
 * [wall.getComments](http://vk.com/dev/wall.getComments) – получает комментарии к записи на стене пользователя;
-* [wall.addComments](http://vk.com/dev/wall.addComments) – добавляет комментарий к записи на стене пользователя или сообщества;
-* [wall.editComments](http://vk.com/dev/wall.editComments) – редактирует комментарий на стене пользователя или сообщества;
-* [wall.deleteComments](http://vk.com/dev/wall.deleteComments) – удаляет комментарий текущего пользователя к записи на своей или чужой стене;
-* [wall.restoreComments](http://vk.com/dev/wall.restoreComments) – восстанавливает комментарий текущего пользователя к записи на своей или чужой стене;
+* [wall.addComment](http://vk.com/dev/wall.addComment) – добавляет комментарий к записи на стене пользователя или сообщества;
+* [wall.editComment](http://vk.com/dev/wall.editComment) – редактирует комментарий на стене пользователя или сообщества;
+* [wall.deleteComment](http://vk.com/dev/wall.deleteComment) – удаляет комментарий текущего пользователя к записи на своей или чужой стене;
+* [wall.restoreComment](http://vk.com/dev/wall.restoreComment) – восстанавливает комментарий текущего пользователя к записи на своей или чужой стене;
 
 
 Использование парсера
