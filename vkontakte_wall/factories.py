@@ -29,3 +29,4 @@ class CommentFactory(DjangoModelNoCommitFactory):
     post = factory.SubFactory(PostFactory)
     author = factory.SubFactory(UserFactory)
     remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.post.remote_id, n))
+    wall_owner = factory.LazyAttribute(lambda o: o.post.wall_owner)
