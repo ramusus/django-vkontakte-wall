@@ -577,7 +577,8 @@ class Post(WallAbstractModel):
 
         return users
 
-    @fetch_all(default_count=1000)
+    # не рекомендуется указывать default_count из-за бага паджинации репостов https://vk.com/wall-51742963_6860
+    @fetch_all
     def fetch_repost_items(self, offset=0, count=1000, *args, **kwargs):
         if count > 1000:
             raise ValueError("Parameter 'count' can not be more than 1000")
