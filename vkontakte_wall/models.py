@@ -10,6 +10,7 @@ from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, Vkont
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
+from m2m_history.fields import ManyToManyHistoryField
 from parser import VkontakteWallParser, VkontakteParseError
 import logging
 import re
@@ -311,7 +312,12 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
 
         log.debug('Fetching likes of %s %s of owner "%s"' % (self._meta.module_name, self.remote_id, self.wall_owner))
 
-        users = User.remote.fetch_instance_likes(self, *args, **kwargs)
+        ids = User.remote.fetch_likes_user_ids(*args, **kwargs)
+        if not ids:
+            return User.objects.none()
+
+        # fetch users
+        self.like_users = User.remote.fetch(ids=ids, only_expired=True)
 
         # update self.likes
         likes_count = self.like_users.count()
@@ -320,7 +326,7 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
         self.likes = likes_count
         self.save()
 
-        return users
+        return self.like_users.all()
 
 
 class Post(WallAbstractModel):
@@ -355,7 +361,7 @@ class Post(WallAbstractModel):
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
     reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0, db_index=True)
 
-    like_users = models.ManyToManyField(User, related_name='like_posts')
+    like_users = ManyToManyHistoryField(User, related_name='like_posts')
     repost_users = models.ManyToManyField(User, related_name='repost_posts')
 
     #{u'photo': {u'access_key': u'5f19dfdc36a1852824',
@@ -758,7 +764,7 @@ class Comment(WallAbstractModel):
 
     likes = models.PositiveIntegerField(u'Кол-во лайков', default=0, db_index=True)
 
-    like_users = models.ManyToManyField(User, related_name='like_comments')
+    like_users = ManyToManyHistoryField(User, related_name='like_comments')
 
     objects = VkontakteCRUDManager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
