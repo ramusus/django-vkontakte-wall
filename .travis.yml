@@ -17,7 +17,7 @@ install:
   - pip install factory_boy
   - pip install coveralls
   - pip install mock
-  - pip install . --allow-external
+  - pip install . --process-dependency-links
 script:
   - django-admin.py --version
   - coverage run --source=vkontakte_wall quicktest.py vkontakte_wall
