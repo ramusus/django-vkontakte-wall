@@ -21,6 +21,7 @@ Django Vkontakte Wall
         'vkontakte_users',
         'vkontakte_groups',
         'vkontakte_wall',
+        'm2m_history',
     )
 
     # oauth-tokens settings
@@ -38,7 +39,7 @@ Django Vkontakte Wall
 * [wall.get](http://vk.com/dev/wall.get) – возвращает список записей со стены;
 * [wall.getById](http://vk.com/dev/wall.getById) – получает записи со стен пользователей по их идентификаторам;
 * [wall.getLikes](http://vk.com/dev/wall.getLikes) – получает информацию о пользователях которым нравится данная запись;
-* [wall.post](http://vk.com/dev/wall.post) – публикует новую запись на своей или чужой стене; 
+* [wall.post](http://vk.com/dev/wall.post) – публикует новую запись на своей или чужой стене;
 * [wall.edit](http://vk.com/dev/wall.edit) – редактирует запись на стене;
 * [wall.delete](http://vk.com/dev/wall.delete) – удаляет запись со стены;
 * [wall.restore](http://vk.com/dev/wall.restore) – восстанавливает удаленную запись на стене пользователя;
@@ -139,26 +140,26 @@ Django Vkontakte Wall
        >>> post.save()
        >>> post.text
        'message'
-    
+
 
 ### Редактирование опубликованной записи
 
         >>> post = Post.objects.get(remote_id='5223304_130')
-        >>> post.text = 'Edited message' 
+        >>> post.text = 'Edited message'
         >>> post.save()
         >>> post.text
         'Edited message'
 
 ### Удаление опупбликованной записи
 
-       >>> post.delete()  # Запись не удаляется из БД, 
-       >>> post.archived  
+       >>> post.delete()  # Запись не удаляется из БД,
+       >>> post.archived
        True               # вместо этого аттрибуту archived присваивается True
 
 ### Востановление удаленной записи
 
-       >>> post.restore() # Запись не создается заново    
-       >>> post.archived  
+       >>> post.restore() # Запись не создается заново
+       >>> post.archived
        False               # вместо этого аттрибуту archived присваивается False
 
 
@@ -191,14 +192,14 @@ Django Vkontakte Wall
 
 ### Удаление опупбликованного комментария
 
-       >>> test_comment.delete()  # Запись не удаляется из БД, 
-       >>> test_comment.archived  
+       >>> test_comment.delete()  # Запись не удаляется из БД,
+       >>> test_comment.archived
        True               # вместо этого аттрибуту archived присваивается True
 
 ### Востановление удаленного комментария
 
-       >>> test_comment.restore() # Запись не создается заново    
-       >>> test_comment.archived  
+       >>> test_comment.restore() # Запись не создается заново
+       >>> test_comment.archived
        False               # вместо этого аттрибуту archived присваивается False
 
 
