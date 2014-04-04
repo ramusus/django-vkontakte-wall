@@ -503,13 +503,13 @@ class Post(WallAbstractModel):
 #               self.fetch_poll(attachment['poll']['poll_id'])
 
         if response.get('copy_owner_id'):
-            self.copy_owner_content_type = ContentType.objects.get_for_model(User if response.get('copy_owner_id') > 0 else Group)
             try:
+                self.copy_owner_content_type = ContentType.objects.get_for_model(User if response.get('copy_owner_id') > 0 else Group)
                 self.copy_owner = self.copy_owner_content_type.get_object_for_this_type(remote_id=abs(response.get('copy_owner_id')))
                 if response.get('copy_post_id'):
                     self.copy_post = Post.objects.get(remote_id='%s_%s' % (response.get('copy_owner_id'), response.get('copy_post_id')))
             except ObjectDoesNotExist:
-                print response
+                pass
 
         super(Post, self).parse(response)
 
