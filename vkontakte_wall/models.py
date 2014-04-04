@@ -612,7 +612,8 @@ class Post(WallAbstractModel):
 
         # positive ids -> only users
         # TODO: think about how to store reposts by groups
-        ids_new = [post['from_id'] for post in resources if post['from_id'] > 0]
+        timestamps = dict([(post['from_id'], post['date']) for post in resources if post['from_id'] > 0])
+        ids_new = timestamps.keys()
         ids_current = self.repost_users.get_query_set(only_pk=True).exclude(time_from=None)
         ids_add = set(ids_new).difference(set(ids_current))
         ids_remove = set(ids_current).difference(set(ids_new))
@@ -626,7 +627,8 @@ class Post(WallAbstractModel):
         self.repost_users.get_query_set_through().filter(time_from=None).delete()
 
         # add new reposts
-        m2m_model.objects.bulk_create([m2m_model(**{'user_id': post['from_id'], 'post_id': self.pk, 'time_from': datetime.fromtimestamp(post['date'])}) for post in resources if post['from_id'] in ids_add])
+        get_repost_date = lambda id: datetime.fromtimestamp(timestamps[id]) if id in timestamps else self.date
+        m2m_model.objects.bulk_create([m2m_model(**{'user_id': id, 'post_id': self.pk, 'time_from': get_repost_date(id)}) for id in ids_add])
 
         # remove reposts
         m2m_model.objects.filter(post_id=self.pk, user_id__in=ids_remove).update(time_to=datetime.now())
