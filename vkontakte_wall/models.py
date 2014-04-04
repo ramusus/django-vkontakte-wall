@@ -403,6 +403,7 @@ class Post(WallAbstractModel):
     copy_owner_id = models.PositiveIntegerField(null=True, db_index=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
     copy_owner = generic.GenericForeignKey('copy_owner_content_type', 'copy_owner_id')
 
+    # TODO: rename wall_reposts -> reposts, after renaming reposts -> reposts_count
     copy_post = models.ForeignKey('Post', null=True, related_name='wall_reposts', help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
     copy_post_date = models.DateTimeField(u'Время сообщения-оригинала', null=True)
     copy_post_type = models.CharField(max_length=20)
@@ -595,7 +596,16 @@ class Post(WallAbstractModel):
 
         return reposts
 
-    # не рекомендуется указывать default_count из-за бага паджинации репостов https://vk.com/wall-51742963_6860
+    def fetch_instance_reposts(self, *args, **kwargs):
+
+        resources = self.fetch_repost_items(*args, **kwargs)
+        if not resources:
+            return Post.objects.none()
+
+        posts = Post.remote.parse_response(resources)#, extra_fields={'copy_post_id': self.pk})
+        return Post.objects.filter(pk__in=set([Post.remote.get_or_create_from_instance(instance).pk for instance in posts]))
+
+    # не рекомендуется указывать default_count из-за бага паджинации репостов: https://vk.com/wall-51742963_6860
     @fetch_all
     def fetch_repost_items(self, offset=0, count=1000, *args, **kwargs):
         if count > 1000:
@@ -622,35 +632,6 @@ class Post(WallAbstractModel):
 
         response = api_call('wall.getReposts', **kwargs)
         return response['items']
-
-#         new_users_ids = []
-#         profiles = dict([(profile['uid'], profile) for profile in response['profiles']])
-#         for post in posts:
-#             user_id = post.get('from_id')
-            # TODO: implement schema for group reposting support with links to texts via though model
-#             if user_id and user_id > 0:
-#                 user_instance, created = User.objects.get_or_create(remote_id=user_id)
-#                 if created:
-#                     if user_id in profiles:
-#                         user_instance.parse(profiles[user_id])
-#                         user_instance.save()
-#                     else:
-#                         new_users_ids += [user_id]
-#
-#                 self.repost_users.add(user_instance)
-#
-#         # update info of new users, that was not found in 'profiles' dict
-#         if new_users_ids:
-#             User.remote.fetch(ids=new_users_ids)
-
-    def fetch_instance_reposts(self, *args, **kwargs):
-
-        resources = self.fetch_repost_items(*args, **kwargs)
-        if not resources:
-            return Post.objects.none()
-
-        posts = Post.remote.parse_response(resources)
-        return Post.objects.filter(pk__in=set([Post.remote.get_or_create_from_instance(instance).pk for instance in posts]))
 
     @transaction.commit_on_success
     def fetch_reposts_parser(self, offset=0):

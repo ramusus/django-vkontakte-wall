@@ -294,17 +294,17 @@ class VkontakteWallTest(TestCase):
 
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_WITH_MANY_REPOSTS_ID, wall_owner=group)
-        users_initial = User.objects.count()
 
         self.assertEqual(post.repost_users.count(), 0)
         self.assertEqual(post.reposts, 0)
 
-        users = post.fetch_reposts(all=True)
+        reposts = post.fetch_reposts(all=True)
 
         self.assertTrue(post.reposts > 2500)
-        self.assertEqual(post.reposts, len(users))
-        self.assertEqual(post.reposts, User.objects.count() - users_initial)
-        self.assertEqual(post.reposts, post.repost_users.count())
+        self.assertTrue(len(post.reposters) > 2500)
+        self.assertEqual(post.reposts, reposts.count())
+        self.assertEqual(post.reposts, Post.objects.count() - 1)
+        self.assertEqual(post.reposts, post.wall_reposts.count())
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_changing_likes(self, *args, **kwargs):
