@@ -353,6 +353,26 @@ class VkontakteWallTest(TestCase):
         self.assertItemsEqual(post.like_users.removed_at(state_time3, only_pk=True), range(50, 150))
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
+    def test_fetch_group_post_updating_initial_reposts_time_from(self, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
+
+        post.repost_users.through.objects.bulk_create([post.repost_users.through(user_id=1, post_id=post.pk)])
+
+        self.assertEqual(post.repost_users.through.objects.count(), 1)
+
+        resources = [{'from_id': 1, 'date': int(time.time())}]
+        with mock.patch('vkontakte_wall.models.Post.fetch_repost_items', side_effect=lambda **kw: resources):
+            post.fetch_reposts(all=True)
+
+        self.assertEqual(post.repost_users.through.objects.count(), 1)
+        instance = post.repost_users.through.objects.all()[0]
+        self.assertEqual(instance.user_id, 1)
+        self.assertEqual(instance.post_id, post.pk)
+        self.assertEqual(instance.time_from, datetime.fromtimestamp(resources[0]['date']))
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_changing_reposts(self, *args, **kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
