@@ -577,17 +577,13 @@ class Post(WallAbstractModel):
         else:
             return self.like_users.all()
 
-    @transaction.commit_on_success
     def fetch_reposts(self, source='api', *args, **kwargs):
         if source == 'api':
             return self.fetch_reposts_api(*args, **kwargs)
         else:
             return self.fetch_reposts_parser(*args, **kwargs)
 
-    @transaction.commit_on_success
     def fetch_reposts_api(self, *args, **kwargs):
-        # TODO: implement schema for group reposting support with links to texts via though model
-
         reposts = self.fetch_instance_reposts(*args, **kwargs)
 
         # update self.likes
