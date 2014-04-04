@@ -406,8 +406,8 @@ class Post(WallAbstractModel):
 
     # TODO: rename wall_reposts -> reposts, after renaming reposts -> reposts_count
     copy_post = models.ForeignKey('Post', null=True, related_name='wall_reposts', help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
-    copy_post_date = models.DateTimeField(u'Время сообщения-оригинала', null=True)
-    copy_post_type = models.CharField(max_length=20)
+#     copy_post_date = models.DateTimeField(u'Время сообщения-оригинала', null=True)
+#     copy_post_type = models.CharField(max_length=20)
     copy_text = models.TextField(u'Комментарий при репосте', help_text=u'Если запись является копией записи с чужой стены и при её копировании был добавлен комментарий, его текст содержится в данном поле')
 
     # not in API
