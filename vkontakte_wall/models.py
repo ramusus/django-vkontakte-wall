@@ -3,6 +3,7 @@ from django.db import models, transaction
 from django.dispatch import Signal
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
@@ -402,7 +403,9 @@ class Post(WallAbstractModel):
     copy_owner_id = models.PositiveIntegerField(null=True, db_index=True, help_text=u'Eсли запись является копией записи с чужой стены, то в поле содержится идентификатор владельца стены у которого была скопирована запись')
     copy_owner = generic.GenericForeignKey('copy_owner_content_type', 'copy_owner_id')
 
-    copy_post = models.ForeignKey('Post', null=True, help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
+    copy_post = models.ForeignKey('Post', null=True, related_name='wall_reposts', help_text=u'Если запись является копией записи с чужой стены, то в поле содержится идентфикатор скопированной записи на стене ее владельца')
+    copy_post_date = models.DateTimeField(u'Время сообщения-оригинала', null=True)
+    copy_post_type = models.CharField(max_length=20)
     copy_text = models.TextField(u'Комментарий при репосте', help_text=u'Если запись является копией записи с чужой стены и при её копировании был добавлен комментарий, его текст содержится в данном поле')
 
     # not in API
@@ -419,6 +422,10 @@ class Post(WallAbstractModel):
         'delete': 'delete',
         'restore': 'restore',
     })
+
+    @property
+    def reposters(self):
+        return [repost.author for repost in self.wall_reposts.all()]
 
     def __unicode__(self):
         return '%s: %s' % (unicode(self.wall_owner), self.text)
@@ -492,6 +499,15 @@ class Post(WallAbstractModel):
 #            if attachment['type'] == 'poll':
                 # это можно делать только после сохранения поста, так что тольо через сигналы
 #               self.fetch_poll(attachment['poll']['poll_id'])
+
+        if response.get('copy_owner_id'):
+            self.copy_owner_content_type = ContentType.objects.get_for_model(User if response.get('copy_owner_id') > 0 else Group)
+            try:
+                self.copy_owner = self.copy_owner_content_type.get_object_for_this_type(remote_id=abs(response.get('copy_owner_id')))
+                if response.get('copy_post_id'):
+                    self.copy_post = Post.objects.get(remote_id='%s_%s' % (response.get('copy_owner_id'), response.get('copy_post_id')))
+            except ObjectDoesNotExist:
+                print response
 
         super(Post, self).parse(response)
 
@@ -572,16 +588,16 @@ class Post(WallAbstractModel):
     def fetch_reposts_api(self, *args, **kwargs):
         # TODO: implement schema for group reposting support with links to texts via though model
 
-        users = self.fetch_instance_reposts(*args, **kwargs)
+        reposts = self.fetch_instance_reposts(*args, **kwargs)
 
         # update self.likes
-        reposts_count = self.repost_users.count()
+        reposts_count = reposts.count()
         if reposts_count < self.reposts:
             log.warning('Fetched ammount of repost users less, than attribute `reposts` of post "%s": %d < %d' % (self.remote_id, reposts_count, self.reposts))
         self.reposts = reposts_count
         self.save()
 
-        return users
+        return reposts
 
     # не рекомендуется указывать default_count из-за бага паджинации репостов https://vk.com/wall-51742963_6860
     @fetch_all
@@ -633,35 +649,12 @@ class Post(WallAbstractModel):
 
     def fetch_instance_reposts(self, *args, **kwargs):
 
-        posts = self.fetch_repost_items(*args, **kwargs)
-        if not posts:
-            return self.repost_users.none()
+        resources = self.fetch_repost_items(*args, **kwargs)
+        if not resources:
+            return Post.objects.none()
 
-        ids = [post.get('from_id') for post in posts if post.get('from_id') > 0]
-
-        # fetch users
-        users = User.remote.fetch(ids=ids, only_expired=True)
-
-        instance = self
-        # rest of code the same as for fetch_likes in vkontakte_users app
-        m2m_field_name = kwargs.pop('m2m_field_name', 'repost_users')
-        m2m_model = getattr(instance, m2m_field_name).through
-        try:
-            rel_field_name = [field.name for field in m2m_model._meta.local_fields if field.name not in ['id','user']][0]
-        except IndexError:
-            raise ImproperlyConfigured("Impossible to find name of relation attribute for instance %s in m2m like users table" % instance)
-
-        ids_current = m2m_model.objects.filter(**{rel_field_name: instance}).values_list('user_id', flat=True)
-        ids_new = users.values_list('pk', flat=True)
-        ids_left = set(ids_current).difference(set(ids_new))
-        ids_entered = set(ids_new).difference(set(ids_current))
-
-        # delete left
-        m2m_model.objects.filter(**{'user_id__in': ids_left, rel_field_name: instance}).delete()
-        # make entered
-        m2m_model.objects.bulk_create([m2m_model(**{'user_id': user_pk, rel_field_name: instance}) for user_pk in ids_entered])
-
-        return users
+        posts = Post.remote.parse_response(resources)
+        return Post.objects.filter(pk__in=set([Post.remote.get_or_create_from_instance(instance).pk for instance in posts]))
 
     @transaction.commit_on_success
     def fetch_reposts_parser(self, offset=0):

@@ -223,10 +223,15 @@ class VkontakteWallTest(TestCase):
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
 
-        self.assertTrue(post.repost_users.count() == 0)
-        users = post.fetch_reposts(all=True)
-        self.assertTrue(post.reposts >= 20)
-        self.assertTrue(post.reposts == post.repost_users.count() == users.count())
+        self.assertEqual(post.wall_reposts.count(), 0)
+
+        reposts = post.fetch_reposts(all=True)
+
+        self.assertTrue(post.reposts > 20)
+        self.assertTrue(len(post.reposters) > 20)
+        self.assertEqual(post.reposts, reposts.count())
+        self.assertEqual(post.reposts, Post.objects.count() - 1)
+        self.assertEqual(post.reposts, post.wall_reposts.count())
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
     def test_fetch_post_likes_parser(self, *args, **kwargs):
