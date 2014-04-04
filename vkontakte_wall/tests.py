@@ -222,16 +222,17 @@ class VkontakteWallTest(TestCase):
 
         group = GroupFactory(remote_id=GROUP_ID)
         post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
+        users_initial = User.objects.count()
 
-        self.assertEqual(post.wall_reposts.count(), 0)
+        self.assertEqual(post.repost_users.count(), 0)
 
-        reposts = post.fetch_reposts(all=True)
+        users = post.fetch_reposts(all=True)
 
         self.assertTrue(post.reposts > 20)
-        self.assertTrue(len(post.reposters) > 20)
-        self.assertEqual(post.reposts, reposts.count())
-        self.assertEqual(post.reposts, Post.objects.count() - 1)
-        self.assertEqual(post.reposts, post.wall_reposts.count())
+#        self.assertTrue(len(post.reposters) > 20)
+        self.assertEqual(post.reposts, users.count())
+        self.assertEqual(post.reposts, User.objects.count() - users_initial)
+        self.assertEqual(post.reposts, post.repost_users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
     def test_fetch_post_likes_parser(self, *args, **kwargs):
@@ -311,6 +312,49 @@ class VkontakteWallTest(TestCase):
 
         group = GroupFactory(remote_id=GROUP2_ID)
         post = PostFactory(remote_id=GROUP2_POST_WITH_MANY_LIKES_ID, wall_owner=group)
+
+        ids1 = range(100, 200)
+        with mock.patch('vkontakte_users.models.User.remote.fetch_likes_user_ids', side_effect=lambda **kw: ids1):
+            users1 = post.fetch_likes(all=True)
+        state_time1 = post.like_users.last_update_time()
+
+        self.assertEqual(post.like_users.count(), users1.count())
+        self.assertEqual(post.like_users.count(), len(ids1))
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids1).values_list('pk', flat=True))
+
+        ids2 = range(50, 150)
+        with mock.patch('vkontakte_users.models.User.remote.fetch_likes_user_ids', side_effect=lambda **kw: ids2):
+            users2 = post.fetch_likes(all=True)
+        state_time2 = post.like_users.last_update_time()
+
+        self.assertEqual(post.like_users.count(), users2.count())
+        self.assertEqual(post.like_users.count(), len(ids2))
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids2).values_list('pk', flat=True))
+
+        ids3 = range(0, 30)
+        with mock.patch('vkontakte_users.models.User.remote.fetch_likes_user_ids', side_effect=lambda **kw: ids3):
+            users3 = post.fetch_likes(all=True)
+        state_time3 = post.like_users.last_update_time()
+
+        self.assertEqual(post.like_users.count(), users3.count())
+        self.assertEqual(post.like_users.count(), len(ids3))
+        self.assertItemsEqual(post.like_users.values_list('pk', flat=True), User.objects.filter(remote_id__in=ids3).values_list('pk', flat=True))
+
+        self.assertItemsEqual(post.like_users.were_at(state_time1, only_pk=True), ids1)
+        self.assertItemsEqual(post.like_users.were_at(state_time2, only_pk=True), ids2)
+        self.assertItemsEqual(post.like_users.were_at(state_time3, only_pk=True), ids3)
+
+        self.assertItemsEqual(post.like_users.added_at(state_time2, only_pk=True), range(50, 100))
+        self.assertItemsEqual(post.like_users.removed_at(state_time2, only_pk=True), range(150, 200))
+
+        self.assertItemsEqual(post.like_users.added_at(state_time3, only_pk=True), range(0, 30))
+        self.assertItemsEqual(post.like_users.removed_at(state_time3, only_pk=True), range(50, 150))
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
+    def test_fetch_group_post_changing_reposts(self, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
 
         ids1 = range(100, 200)
         with mock.patch('vkontakte_users.models.User.remote.fetch_likes_user_ids', side_effect=lambda **kw: ids1):

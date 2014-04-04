@@ -13,6 +13,7 @@ from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
 from m2m_history.fields import ManyToManyHistoryField
 from parser import VkontakteWallParser, VkontakteParseError
+from datetime import datetime
 import logging
 import re
 
@@ -363,7 +364,7 @@ class Post(WallAbstractModel):
     reposts = models.PositiveIntegerField(u'Кол-во репостов', default=0, db_index=True)
 
     like_users = ManyToManyHistoryField(User, related_name='like_posts')
-    repost_users = models.ManyToManyField(User, related_name='repost_posts')
+    repost_users = ManyToManyHistoryField(User, related_name='repost_posts')
 
     #{u'photo': {u'access_key': u'5f19dfdc36a1852824',
     #u'aid': -7,
@@ -585,25 +586,42 @@ class Post(WallAbstractModel):
             return self.fetch_reposts_parser(*args, **kwargs)
 
     def fetch_reposts_api(self, *args, **kwargs):
-        reposts = self.fetch_instance_reposts(*args, **kwargs)
+        self.fetch_instance_reposts(*args, **kwargs)
 
         # update self.likes
-        reposts_count = reposts.count()
+        reposts_count = self.repost_users.get_query_set(only_pk=True).count()
         if reposts_count < self.reposts:
             log.warning('Fetched ammount of repost users less, than attribute `reposts` of post "%s": %d < %d' % (self.remote_id, reposts_count, self.reposts))
         self.reposts = reposts_count
         self.save()
 
-        return reposts
+        return self.repost_users.all()
 
+    @transaction.commit_on_success
     def fetch_instance_reposts(self, *args, **kwargs):
 
         resources = self.fetch_repost_items(*args, **kwargs)
         if not resources:
             return Post.objects.none()
 
-        posts = Post.remote.parse_response(resources)#, extra_fields={'copy_post_id': self.pk})
-        return Post.objects.filter(pk__in=set([Post.remote.get_or_create_from_instance(instance).pk for instance in posts]))
+#         posts = Post.remote.parse_response(resources)#, extra_fields={'copy_post_id': self.pk})
+#         return Post.objects.filter(pk__in=set([Post.remote.get_or_create_from_instance(instance).pk for instance in posts]))
+
+        ids_current = self.repost_users.get_query_set(only_pk=True)
+        ids_new = [post['from_id'] for post in resources if post['from_id'] > 0]
+        ids_add = set(ids_new).difference(set(ids_current))
+        ids_remove = set(ids_current).difference(set(ids_new))
+
+        m2m_model = self.repost_users.through
+
+        # add new reposts
+        User.remote.fetch(ids=ids_add, only_expired=True)
+        m2m_model.objects.bulk_create([m2m_model(**{'user_id': post['from_id'], 'post_id': self.pk, 'time_from': datetime.fromtimestamp(post['date'])}) for post in resources if post['from_id'] in ids_add])
+
+        # remove reposts
+        m2m_model.objects.filter(post_id=self.pk, user_id__in=ids_remove).update(time_to=datetime.now())
+
+        return
 
     # не рекомендуется указывать default_count из-за бага паджинации репостов: https://vk.com/wall-51742963_6860
     @fetch_all
