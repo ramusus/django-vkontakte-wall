@@ -7,7 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError
+from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, VkontakteContentError, MASTER_DATABASE
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User, ParseUsersMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -614,7 +614,7 @@ class Post(WallAbstractModel):
         # TODO: think about how to store reposts by groups
         timestamps = dict([(post['from_id'], post['date']) for post in resources if post['from_id'] > 0])
         ids_new = timestamps.keys()
-        ids_current = self.repost_users.get_query_set(only_pk=True).exclude(time_from=None)
+        ids_current = self.repost_users.get_query_set(only_pk=True).using(MASTER_DATABASE).exclude(time_from=None)
         ids_add = set(ids_new).difference(set(ids_current))
         ids_remove = set(ids_current).difference(set(ids_new))
 
