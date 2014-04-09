@@ -630,8 +630,9 @@ class Post(WallAbstractModel):
         get_repost_date = lambda id: datetime.fromtimestamp(timestamps[id]) if id in timestamps else self.date
         m2m_model.objects.bulk_create([m2m_model(**{'user_id': id, 'post_id': self.pk, 'time_from': get_repost_date(id)}) for id in ids_add])
 
-        # remove reposts
-        m2m_model.objects.filter(post_id=self.pk, user_id__in=ids_remove).update(time_to=datetime.now())
+        # remove reposts.
+        # Commented becouse of .using(MASTER_DATABASE).exclude(time_from=None) filtering for ids_current
+#        m2m_model.objects.filter(post_id=self.pk, user_id__in=ids_remove).update(time_to=datetime.now())
         return
 
     # не рекомендуется указывать default_count из-за бага паджинации репостов: https://vk.com/wall-51742963_6860
