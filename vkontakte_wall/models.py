@@ -234,7 +234,6 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
 
     methods_namespace = 'wall'
     slug_prefix = 'wall'
-    generic_fields_models_allowed = [Group, User]
     _commit_remote = False
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
@@ -273,24 +272,6 @@ class WallAbstractModel(VkontakteModel, VkontakteCRUDModel):
     @property
     def remote_id_short(self):
         return self.remote_id.split('_')[1]
-
-    def save(self, *args, **kwargs):
-        self.prepare_generic_fields()
-        return super(WallAbstractModel, self).save(*args, **kwargs)
-
-    def prepare_generic_fields(self):
-        '''
-        Check and set exactly right Group or User content types, not content type of a child
-        '''
-        allowed_ct_pks = [ct.pk for ct in ContentType.objects.get_for_models(*self.generic_fields_models_allowed).values()]
-        for field_name in self.generic_field_names:
-            ct_field_name = '%s_content_type' % field_name
-            for allowed_model in self.generic_fields_models_allowed:
-                if isinstance(getattr(self, field_name), allowed_model):
-                    setattr(self, ct_field_name, ContentType.objects.get_for_model(allowed_model))
-                    break
-            if getattr(self, field_name) and getattr(self, ct_field_name).pk not in allowed_ct_pks:
-                raise AttributeError("Attribute '%s' field should be any of %s instance, but not %s" % (field_name, allowed_models, getattr(self, field_name)))
 
     def get_or_create_group_or_user(self, remote_id):
         if remote_id > 0:
@@ -338,7 +319,6 @@ class Post(WallAbstractModel):
 
     likes_type = 'post'
     fields_required_for_update = ['post_id', 'owner_id']
-    generic_field_names = ['author', 'wall_owner', 'copy_owner']
 
     # Владелец стены сообщения User or Group
     wall_owner_content_type = models.ForeignKey(ContentType, related_name='vkontakte_wall_posts')
@@ -591,11 +571,12 @@ class Post(WallAbstractModel):
         self.fetch_instance_reposts(*args, **kwargs)
 
         # update self.reposts
-        reposts_count = self.repost_users.get_query_set(only_pk=True).count()
-        if reposts_count < self.reposts:
-            log.warning('Fetched ammount of repost users less, than attribute `reposts` of post "%s": %d < %d' % (self.remote_id, reposts_count, self.reposts))
-        self.reposts = reposts_count
-        self.save()
+        # commented, because it's less important count
+#         reposts_count = self.repost_users.get_query_set(only_pk=True).count()
+#         if reposts_count < self.reposts:
+#             log.warning('Fetched ammount of repost users less, than attribute `reposts` of post "%s": %d < %d' % (self.remote_id, reposts_count, self.reposts))
+#         self.reposts = reposts_count
+#         self.save()
 
         return self.repost_users.all()
 
@@ -730,7 +711,6 @@ class Comment(WallAbstractModel):
     remote_pk_field = 'cid'
     likes_type = 'comment'
     fields_required_for_update = ['comment_id', 'post_id', 'owner_id']
-    generic_field_names = ['reply_for', 'author', 'wall_owner']
 
     post = models.ForeignKey(Post, verbose_name=u'Пост', related_name='wall_comments')
 
