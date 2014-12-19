@@ -1,9 +1,11 @@
-from vkontakte_users.factories import UserFactory
-from vkontakte_groups.factories import GroupFactory
-from vkontakte_api.factories import DjangoModelNoCommitFactory
-from models import Post, Comment
+# -*- coding: utf-8 -*-
 from datetime import datetime
+
 import factory
+from models import Post, Comment
+from vkontakte_api.factories import DjangoModelNoCommitFactory
+from vkontakte_groups.factories import GroupFactory
+from vkontakte_users.factories import UserFactory
 
 
 class PostFactory(DjangoModelNoCommitFactory):

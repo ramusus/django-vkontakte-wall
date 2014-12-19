@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime, tzinfo
+import time
+
 from django.test import TestCase
-from models import Post, Comment
-from factories import PostFactory, UserFactory, GroupFactory, CommentFactory
+from django.utils import timezone
+import mock
+import simplejson as json
 from vkontakte_users.factories import User
 from vkontakte_users.tests import user_fetch_mock
-from datetime import datetime
-from mock import MagicMock
-import simplejson as json
-import mock
-import time
+
+from .factories import PostFactory, UserFactory, GroupFactory, CommentFactory
+from .models import Post, Comment
 
 USER_ID = 5223304
 POST_ID = '5223304_130'
@@ -19,8 +21,8 @@ GROUP_POST_ID = '-16297716_126261'
 GROUP_COMMENT_ID = '-16297716_126262'
 GROUP_POST_WITH_MANY_REPOSTS_ID = '-16297716_263109'
 
-OPEN_WALL_GROUP_ID = 19391365
-OPEN_WALL_GROUP_SCREEN_NAME = 'nokia'
+OPEN_WALL_GROUP_ID = 26604743
+OPEN_WALL_GROUP_SCREEN_NAME = 'club26604743'
 
 GROUP_CRUD_ID = 59154616
 POST_CRUD_ID = '-59154616_366'
@@ -28,6 +30,7 @@ USER_AUTHOR_ID = 201164356
 
 GROUP2_ID = 10362317
 GROUP2_POST_WITH_MANY_LIKES_ID = '-10362317_236186'
+
 
 class VkontakteWallTest(TestCase):
 
@@ -43,7 +46,8 @@ class VkontakteWallTest(TestCase):
         self.assertTrue(Post.objects.count() == 0)
 
         posts = Post.remote.fetch(ids=[POST_ID, GROUP_POST_ID])
-        self.assertTrue(len(posts) == Post.objects.count() == 2)
+        self.assertEqual(len(posts), Post.objects.count())
+        self.assertEqual(len(posts), 2)
 
     def fetch_post_comments_recursive_calls_ammount_side_effect(*args, **kwargs):
         comments_count = 100 if kwargs['offset'] == 0 else 6
@@ -58,11 +62,37 @@ class VkontakteWallTest(TestCase):
 
         comments = post.fetch_comments(sort='desc', all=True)
 
-        self.assertTrue(len(comments) > 105)
+        self.assertEqual(comments.count(), 106)
         self.assertEqual(fetch_method.called, True)
         self.assertEqual(fetch_method.call_count, 2)
         self.assertEqual(fetch_method.call_args_list[0][1]['offset'], 0)
         self.assertEqual(fetch_method.call_args_list[1][1]['offset'], 100)
+
+    def fetch_post_reposts_recursive_calls_ammount_side_effect(*args, **kwargs):
+        if kwargs['offset'] == 0:
+            count = 100
+        elif kwargs['offset'] == 100:
+            count = 6
+        else:
+            count = 0
+        return {'items': [{'from_id': UserFactory().pk, 'date': time.time()} for i in range(count)]}
+
+    @mock.patch('vkontakte_wall.models.api_call', side_effect=fetch_post_reposts_recursive_calls_ammount_side_effect)
+    def test_fetch_post_reposts_recursive_calls_ammount(self, fetch_method, *args, **kwargs):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        post = PostFactory(remote_id=GROUP_POST_ID, wall_owner=group)
+
+        reposts = post.fetch_reposts(all=True)
+
+        self.assertEqual(reposts.count(), 106)
+        self.assertEqual(fetch_method.called, True)
+        self.assertEqual(fetch_method.call_count, 5)
+        self.assertEqual(fetch_method.call_args_list[0][1]['offset'], 0)
+        self.assertEqual(fetch_method.call_args_list[1][1]['offset'], 100)
+        self.assertEqual(fetch_method.call_args_list[2][1]['offset'], 106)
+        self.assertEqual(fetch_method.call_args_list[3][1]['offset'], 107)
+        self.assertEqual(fetch_method.call_args_list[4][1]['offset'], 108)
 
     def test_fetch_user_wall(self):
 
@@ -72,12 +102,12 @@ class VkontakteWallTest(TestCase):
 
         posts = owner.fetch_posts()
 
-        self.assertTrue(len(posts) > 0)
+        self.assertGreater(len(posts), 0)
         self.assertEqual(Post.objects.count(), len(posts))
         self.assertEqual(posts[0].wall_owner, owner)
 
         owner.fetch_posts(all=True)
-        self.assertTrue(Post.objects.count() >= len(posts))
+        self.assertGreaterEqual(Post.objects.count(), len(posts))
 
     def test_fetch_group_wall(self):
 
@@ -88,11 +118,12 @@ class VkontakteWallTest(TestCase):
         posts = group.fetch_posts(count=10)
 
         self.assertEqual(posts[0].wall_owner, group)
-        self.assertTrue(len(posts) == Post.objects.count() == 10)
-        self.assertTrue(isinstance(posts[0].date, datetime))
-        self.assertTrue(posts[0].likes + posts[1].likes > 0)
-        self.assertTrue(posts[0].comments + posts[1].comments > 0)
-        self.assertTrue(len(posts[0].text) > 0)
+        self.assertEqual(len(posts), Post.objects.count())
+        self.assertEqual(len(posts), 10)
+        self.assertIsInstance(posts[0].date, datetime)
+        self.assertGreater(posts[0].likes + posts[1].likes, 0)
+        self.assertGreater(posts[0].comments + posts[1].comments, 0)
+        self.assertGreater(len(posts[0].text), 0)
 
         # testing `after` parameter
         after = Post.objects.order_by('date')[0].date
@@ -101,7 +132,8 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Post.objects.count(), 0)
 
         posts = group.fetch_posts(after=after)
-        self.assertTrue(len(posts) == Post.objects.count() == 10)
+        self.assertEqual(len(posts), Post.objects.count())
+        self.assertEqual(len(posts), 10)
 
         # testing `before` parameter
         before = Post.objects.order_by('-date')[5].date
@@ -110,23 +142,25 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Post.objects.count(), 0)
 
         posts = group.fetch_posts(before=before, after=after)
-        self.assertTrue(len(posts) == Post.objects.count() == 5)
+        self.assertEqual(len(posts), Post.objects.count())
+        self.assertEqual(len(posts), 5)
 
         # testing `after` and `all` parameters and returning less than all scope of posts
         Post.objects.all().delete()
         self.assertEqual(Post.objects.count(), 0)
 
         group.fetch_posts(count=30)
-        posts = group.fetch_posts(after=after, all=True)
         self.assertEqual(Post.objects.count(), 30)
+
+        posts = group.fetch_posts(after=after, all=True)
         self.assertEqual(len(posts), 10)
 
     def test_fetch_group_wall_before(self):
         # TODO: finish test
         group = GroupFactory(remote_id=34384434, screen_name='topmelody')
 
-        before = datetime(2013, 10, 3)
-        after = datetime(2013, 10, 1)
+        before = datetime(2013, 10, 3, tzinfo=timezone.utc)
+        after = datetime(2013, 10, 1, tzinfo=timezone.utc)
 
         posts = group.fetch_posts(all=True, before=before, after=after, filter='owner')
 
@@ -140,13 +174,12 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Post.objects.count(), 0)
         self.assertEqual(User.objects.count(), 0)
 
-        count = 10
-        posts = group.fetch_posts(own=0, count=count, extended=1)
+        posts = group.fetch_posts(own=0, count=10, extended=1)
 
-        self.assertEqual(len(posts), count)
-        self.assertEqual(Post.objects.count(), count)
-        self.assertTrue(User.objects.count() > 0)
-        self.assertTrue(Post.objects.exclude(author_id=None).count() > 0)
+        self.assertEqual(len(posts), 10)
+        self.assertEqual(Post.objects.count(), 10)
+        self.assertGreater(User.objects.count(), 0)
+        self.assertGreater(Post.objects.exclude(author_id=None).count(), 0)
 
     def test_fetch_user_post_comments(self):
 
@@ -156,7 +189,7 @@ class VkontakteWallTest(TestCase):
 
         comments = post.fetch_comments()
 
-        self.assertTrue(len(comments) > 0)
+        self.assertGreater(len(comments), 0)
         self.assertEqual(Comment.objects.count(), len(comments))
         self.assertEqual(comments[0].post, post)
 
@@ -171,7 +204,9 @@ class VkontakteWallTest(TestCase):
 
         comments = post.fetch_comments(sort='desc', count=90)
 
-        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
+        self.assertEqual(len(comments), 90)
+        self.assertEqual(len(comments), Comment.objects.count())
+        self.assertEqual(len(comments), post.wall_comments.count())
         self.assertEqual(comments[0].post, post)
         self.assertEqual(comments[0].wall_owner, group)
 
@@ -182,7 +217,9 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = post.fetch_comments(sort='desc', after=after, count=100)
-        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
+        self.assertEqual(len(comments), 90)
+        self.assertEqual(len(comments), Comment.objects.count())
+        self.assertEqual(len(comments), post.wall_comments.count())
 
         # testing `before` parameter
         before = Comment.objects.order_by('-date')[5].date
@@ -191,14 +228,17 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = post.fetch_comments(sort='desc', before=before, after=after)
-        self.assertTrue(len(comments) == Comment.objects.count() == 85)
+        self.assertEqual(len(comments), 85)
+        self.assertEqual(len(comments), Comment.objects.count())
 
         # testing `after` and `all` parameters
         Comment.objects.all().delete()
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = post.fetch_comments(sort='desc', after=after, all=True)
-        self.assertTrue(len(comments) == Comment.objects.count() == post.wall_comments.count() == 90)
+        self.assertEqual(len(comments), 90)
+        self.assertEqual(len(comments), Comment.objects.count())
+        self.assertEqual(len(comments), post.wall_comments.count())
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
     def test_fetch_group_post_comments_bad_unicode(self, *args, **kwargs):
@@ -208,7 +248,7 @@ class VkontakteWallTest(TestCase):
         post = PostFactory(remote_id='-23482909_195292', wall_owner=group)
 
         comments = post.fetch_comments(sort='desc', count=100)
-        self.assertTrue(comments.count() > 0)
+        self.assertGreater(comments.count(), 0)
 
         # http://vk.com/wall-41330561_73352
         # UnicodeDecodeError: 'utf8' codec can't decode byte 0xd3 in position 0: invalid continuation byte
@@ -216,7 +256,7 @@ class VkontakteWallTest(TestCase):
         post = PostFactory(remote_id='-41330561_73352', wall_owner=group)
 
         comments = post.fetch_comments(sort='desc', count=100)
-        self.assertTrue(comments.count() > 0)
+        self.assertGreater(comments.count(), 0)
 
     @mock.patch('vkontakte_users.models.User.remote.get_by_slug', side_effect=lambda s: UserFactory())
     def test_fetch_post_reposts(self, *args, **kwargs):
@@ -229,7 +269,7 @@ class VkontakteWallTest(TestCase):
 
         users = post.fetch_reposts(all=True)
 
-        self.assertTrue(post.reposts > 20)
+        self.assertGreater(post.reposts, 20)
 #        self.assertTrue(len(post.reposters) > 20)
         self.assertEqual(post.reposts, users.count())
         self.assertEqual(post.reposts, User.objects.count() - users_initial)
@@ -247,7 +287,7 @@ class VkontakteWallTest(TestCase):
         users = post.fetch_reposts(all=True)
 
 #        print post.reposts
-        self.assertTrue(post.reposts > 120)
+        self.assertGreaterEqual(post.reposts, 104)  # total >130, but we store only by users
         self.assertEqual(post.reposts, users.count())
         self.assertEqual(post.reposts, User.objects.count() - users_initial)
         self.assertEqual(post.reposts, post.repost_users.count())
@@ -262,7 +302,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(post.likes, 0)
 
         post.fetch_likes(source='parser')
-        self.assertTrue(post.likes > 120)
+        self.assertGreater(post.likes, 120)
         self.assertEqual(post.likes, post.like_users.count())
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
@@ -277,7 +317,7 @@ class VkontakteWallTest(TestCase):
         users_initial = User.objects.count()
         users = post.fetch_likes(all=True)
 
-        self.assertTrue(post.likes > 120)
+        self.assertGreater(post.likes, 120)
         self.assertEqual(post.likes, len(users))
         self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
@@ -303,7 +343,7 @@ class VkontakteWallTest(TestCase):
 
         users = post.fetch_likes(all=True)
 
-        self.assertTrue(post.likes > 3800)
+        self.assertGreater(post.likes, 3800)
         self.assertEqual(post.likes, len(users))
         self.assertEqual(post.likes, User.objects.count() - users_initial)
         self.assertEqual(post.likes, post.like_users.count())
@@ -320,7 +360,7 @@ class VkontakteWallTest(TestCase):
 
         users = post.fetch_reposts(all=True)
 
-        self.assertTrue(post.reposts > 2500)
+        self.assertGreater(post.reposts, 2500)
 #        self.assertTrue(len(post.reposters) > 2500)
         self.assertEqual(post.reposts, users.count())
         self.assertEqual(post.reposts, User.objects.count() - users_initial)
@@ -387,7 +427,7 @@ class VkontakteWallTest(TestCase):
         instance = post.repost_users.through.objects.all()[0]
         self.assertEqual(instance.user_id, 1)
         self.assertEqual(instance.post_id, post.pk)
-        self.assertEqual(instance.time_from, datetime.fromtimestamp(resources[0]['date']))
+        self.assertEqual(instance.time_from, datetime.fromtimestamp(resources[0]['date'], tz=timezone.utc))
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_changing_reposts(self, *args, **kwargs):
@@ -450,7 +490,7 @@ class VkontakteWallTest(TestCase):
 
         users = comment.fetch_likes(all=True)
 
-        self.assertTrue(comment.likes > 0)
+        self.assertGreater(comment.likes, 0)
         self.assertEqual(comment.likes, len(users))
         self.assertEqual(comment.likes, User.objects.count() - users_initial)
         self.assertEqual(comment.likes, comment.like_users.count())
@@ -487,7 +527,7 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.reposts, 3)
         self.assertEqual(instance.comments, 4)
         self.assertEqual(instance.text, 'qwerty')
-        self.assertTrue(isinstance(instance.date, datetime))
+        self.assertIsInstance(instance.date, datetime)
 
     def test_parse_comment(self):
 
@@ -505,9 +545,10 @@ class VkontakteWallTest(TestCase):
         instance.save()
 
         self.assertEqual(instance.remote_id, '%s_2505' % USER_ID)
-        self.assertEqual(instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
+        self.assertEqual(
+            instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
         self.assertEqual(instance.author, author)
-        self.assertTrue(isinstance(instance.date, datetime))
+        self.assertIsInstance(instance.date, datetime)
 
         instance = Comment(post=post)
         instance.parse(json.loads(response)['response'][2])
@@ -569,14 +610,19 @@ class VkontakteWallTest(TestCase):
         }
         self.assertEqual(post.prepare_delete_params(), expected_params)
 
+    def assertPostTheSameEverywhere(self, post):
+        post_remote = Post.remote.fetch(ids=[post.remote_id])[0]
+        self.assertEqual(post_remote.remote_id, post.remote_id)
+        self.assertEqual(post_remote.text, post.text)
+
+    def assertCommentTheSameEverywhere(self, comment):
+        comment_remote = Comment.remote.fetch_post(post=comment.post).get(remote_id=comment.remote_id)
+        self.assertEqual(comment_remote.remote_id, comment.remote_id)
+        self.assertEqual(comment_remote.text, comment.text)
+
     def test_post_crud_methods(self):
         group = GroupFactory(remote_id=GROUP_CRUD_ID)
         user = UserFactory(remote_id=USER_AUTHOR_ID)
-
-        def assert_local_equal_to_remote(post):
-            post_remote = Post.remote.fetch(ids=[post.remote_id])[0]
-            self.assertEqual(post_remote.remote_id, post.remote_id)
-            self.assertEqual(post_remote.text, post.text)
 
         self.assertEqual(Post.objects.count(), 0)
 
@@ -587,30 +633,32 @@ class VkontakteWallTest(TestCase):
 
         self.assertEqual(Post.objects.count(), 1)
         self.assertNotEqual(len(post.remote_id), 0)
-        assert_local_equal_to_remote(post)
+        self.assertPostTheSameEverywhere(post)
 
         # create by manager
-        post = Post.objects.create(text='Test message created by manager', wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        post = Post.objects.create(
+            text='Test message created by manager', wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
         self.objects_to_delete += [post]
 
         self.assertEqual(Post.objects.count(), 2)
         self.assertNotEqual(len(post.remote_id), 0)
-        assert_local_equal_to_remote(post)
+        self.assertPostTheSameEverywhere(post)
 
         # create by manager on user's wall
-        post = Post.objects.create(text='Test message', wall_owner=user, author=user, date=datetime.now(), commit_remote=True)
+        post = Post.objects.create(
+            text='Test message', wall_owner=user, author=user, date=datetime.now(), commit_remote=True)
         self.objects_to_delete += [post]
 
         self.assertEqual(Post.objects.count(), 3)
         self.assertNotEqual(len(post.remote_id), 0)
-        assert_local_equal_to_remote(post)
+        self.assertPostTheSameEverywhere(post)
 
         # update
         post.text = 'Test message updated'
         post.save(commit_remote=True)
 
         self.assertEqual(Post.objects.count(), 3)
-        assert_local_equal_to_remote(post)
+        self.assertPostTheSameEverywhere(post)
 
         # delete
         post.delete(commit_remote=True)
@@ -624,17 +672,12 @@ class VkontakteWallTest(TestCase):
         self.assertFalse(post.archived)
 
         self.assertEqual(Post.objects.count(), 3)
-        assert_local_equal_to_remote(post)
+        self.assertPostTheSameEverywhere(post)
 
     def test_comment_crud_methods(self):
         group = GroupFactory(remote_id=GROUP_CRUD_ID)
         post = PostFactory(remote_id=POST_CRUD_ID, text='', wall_owner=group)
         user = UserFactory(remote_id=USER_AUTHOR_ID)
-
-        def assert_local_equal_to_remote(comment):
-            comment_remote = Comment.remote.fetch_post(post=comment.post).get(remote_id=comment.remote_id)
-            self.assertEqual(comment_remote.remote_id, comment.remote_id)
-            self.assertEqual(comment_remote.text, comment.text)
 
         Comment.remote.fetch_post(post=post)
         self.assertEqual(Comment.objects.count(), 0)
@@ -646,22 +689,23 @@ class VkontakteWallTest(TestCase):
 
         self.assertEqual(Comment.objects.count(), 1)
         self.assertNotEqual(len(comment.remote_id), 0)
-        assert_local_equal_to_remote(comment)
+        self.assertCommentTheSameEverywhere(comment)
 
         # create by manager
-        comment = Comment.objects.create(text='Test comment created by manager', post=post, wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
+        comment = Comment.objects.create(
+            text='Test comment created by manager', post=post, wall_owner=group, author=user, date=datetime.now(), commit_remote=True)
         self.objects_to_delete += [comment]
 
         self.assertEqual(Comment.objects.count(), 2)
         self.assertNotEqual(len(comment.remote_id), 0)
-        assert_local_equal_to_remote(comment)
+        self.assertCommentTheSameEverywhere(comment)
 
         # update
         comment.text = 'Test comment updated'
         comment.save(commit_remote=True)
 
         self.assertEqual(Comment.objects.count(), 2)
-        assert_local_equal_to_remote(comment)
+        self.assertCommentTheSameEverywhere(comment)
 
         # delete
         comment.delete(commit_remote=True)
@@ -675,4 +719,4 @@ class VkontakteWallTest(TestCase):
         self.assertFalse(comment.archived)
 
         self.assertEqual(Comment.objects.count(), 2)
-        assert_local_equal_to_remote(comment)
+        self.assertCommentTheSameEverywhere(comment)

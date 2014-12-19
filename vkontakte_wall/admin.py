@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from models import Post, Comment
+from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
 try:
     from django.template.defaultfilters import truncatewords
 except ImportError:
     from django.utils.text import truncate_words as truncatewords
-from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
-from models import Post, Comment
+
 
 class WallOwnerListFilter(GenericRelationListFilter):
     title = u'Владелец стены'
@@ -13,6 +14,7 @@ class WallOwnerListFilter(GenericRelationListFilter):
     ct_field_name = 'wall_owner_content_type'
     id_field_name = 'wall_owner_id'
     field_name = 'wall_owner'
+
 
 class PostListFilter(admin.SimpleListFilter):
     title = u'Сообщение'
@@ -37,25 +39,30 @@ class PostListFilter(admin.SimpleListFilter):
             ct_value, id_value = parent_value.split(self.separator)
             return queryset.filter(**{self.ct_field_name: ct_value, self.id_field_name: id_value, self.field_name: self.value()})
 
+
 class CommentInline(admin.TabularInline):
     model = Comment
     extra = 0
     can_delete = False
-    fields = ('author','text','date','likes')
+    fields = ('author', 'text', 'date', 'likes')
     readonly_fields = fields
 
+
 class PostAdmin(VkontakteModelAdmin):
-    list_display = ('wall_owner','text','author','vk_link','date','comments','likes','reposts')
+    list_display = ('wall_owner', 'text', 'author', 'vk_link',
+                    'date', 'comments', 'likes', 'reposts')
     list_display_links = ('text',)
     list_filter = (WallOwnerListFilter,)
-    search_fields = ('text','copy_text','remote_id')
-    exclude = ('like_users','repost_users',)
+    search_fields = ('text', 'copy_text', 'remote_id')
+    exclude = ('like_users', 'repost_users',)
     inlines = [CommentInline]
 
+
 class CommentAdmin(VkontakteModelAdmin):
-    list_display = ('author','text','post','vk_link','date','likes')
-    search_fields = ('text','remote_id')
-    list_filter = (WallOwnerListFilter,PostListFilter,)
+    list_display = ('author', 'text', 'post', 'vk_link', 'date', 'likes')
+    search_fields = ('text', 'remote_id')
+    list_filter = (WallOwnerListFilter, PostListFilter,)
+
 
 admin.site.register(Post, PostAdmin)
 admin.site.register(Comment, CommentAdmin)
