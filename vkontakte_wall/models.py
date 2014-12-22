@@ -12,9 +12,9 @@ from django.dispatch import Signal
 from django.utils.encoding import python_2_unicode_compatible
 from m2m_history.fields import ManyToManyHistoryField
 from vkontakte_api import fields
+from vkontakte_api.api import api_call
 from vkontakte_api.decorators import fetch_all
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel, VkontakteCRUDManager, MASTER_DATABASE
-from vkontakte_api.utils import api_call
 from vkontakte_groups.models import Group, ParseGroupsMixin
 from vkontakte_users.models import User, ParseUsersMixin
 
