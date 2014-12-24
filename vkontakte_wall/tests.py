@@ -439,7 +439,6 @@ class VkontakteWallTest(TestCase):
         with mock.patch('vkontakte_wall.models.Post.fetch_repost_items', side_effect=lambda **kw: resources1):
             users1 = post.fetch_reposts(all=True)
         state_time1 = post.repost_users.last_update_time()
-        state_time_add1 = datetime.fromtimestamp(resources1[0]['date'])
 
         self.assertEqual(post.repost_users.count(), users1.count())
         self.assertEqual(post.repost_users.count(), 1)
@@ -449,7 +448,6 @@ class VkontakteWallTest(TestCase):
         with mock.patch('vkontakte_wall.models.Post.fetch_repost_items', side_effect=lambda **kw: resources1 + resources2):
             users2 = post.fetch_reposts(all=True)
         state_time2 = post.repost_users.last_update_time()
-        state_time_add2 = datetime.fromtimestamp(resources2[0]['date'])
 
         self.assertEqual(post.repost_users.count(), users2.count())
         self.assertEqual(post.repost_users.count(), 2)
@@ -459,24 +457,40 @@ class VkontakteWallTest(TestCase):
         with mock.patch('vkontakte_wall.models.Post.fetch_repost_items', side_effect=lambda **kw: resources3):
             users3 = post.fetch_reposts(all=True)
         state_time3 = post.repost_users.last_update_time()
-        state_time_add3 = datetime.fromtimestamp(resources3[0]['date'])
 
         self.assertEqual(post.repost_users.count(), users3.count())
         self.assertEqual(post.repost_users.count(), 1)
         self.assertItemsEqual(post.repost_users.all(), User.objects.filter(remote_id__in=[3]))
 
+        # check results of 3 changes
         self.assertItemsEqual(post.repost_users.were_at(state_time1, only_pk=True), [1])
         self.assertItemsEqual(post.repost_users.were_at(state_time2, only_pk=True), [1, 2])
         self.assertItemsEqual(post.repost_users.were_at(state_time3, only_pk=True), [3])
 
+        state_time_add1 = datetime.utcfromtimestamp(resources1[0]['date']).replace(tzinfo=timezone.utc)
+        state_time_add2 = datetime.utcfromtimestamp(resources2[0]['date']).replace(tzinfo=timezone.utc)
+        state_time_add3 = datetime.utcfromtimestamp(resources3[0]['date']).replace(tzinfo=timezone.utc)
+
         self.assertItemsEqual(post.repost_users.added_at(state_time_add1, only_pk=True), [1])
-        self.assertItemsEqual(post.repost_users.removed_at(state_time1, only_pk=True), [])
-
         self.assertItemsEqual(post.repost_users.added_at(state_time_add2, only_pk=True), [2])
-        self.assertItemsEqual(post.repost_users.removed_at(state_time2, only_pk=True), [])
-
         self.assertItemsEqual(post.repost_users.added_at(state_time_add3, only_pk=True), [3])
+
+        self.assertItemsEqual(post.repost_users.removed_at(state_time1, only_pk=True), [])
+        self.assertItemsEqual(post.repost_users.removed_at(state_time2, only_pk=True), [])
         self.assertItemsEqual(post.repost_users.removed_at(state_time3, only_pk=True), [1, 2])
+
+        # returns user ID=2 with old date
+        resources4 = resources3 + resources2
+        with mock.patch('vkontakte_wall.models.Post.fetch_repost_items', side_effect=lambda **kw: resources4):
+            users4 = post.fetch_reposts(all=True)
+
+        self.assertEqual(post.repost_users.count(), users4.count())
+        self.assertEqual(post.repost_users.count(), 2)
+        self.assertItemsEqual(post.repost_users.all(), User.objects.filter(remote_id__in=[2, 3]))
+
+        # changed after last fetching
+        self.assertItemsEqual(post.repost_users.were_at(state_time3, only_pk=True), [2, 3])
+        self.assertItemsEqual(post.repost_users.removed_at(state_time3, only_pk=True), [1])
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
     def test_fetch_group_post_comment_likes(self, *args, **kwargs):

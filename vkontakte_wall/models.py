@@ -9,6 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
 from django.db import models, transaction
 from django.dispatch import Signal
+from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 from m2m_history.fields import ManyToManyHistoryField
 from vkontakte_api import fields
@@ -19,7 +20,6 @@ from vkontakte_groups.models import Group, ParseGroupsMixin
 from vkontakte_users.models import User, ParseUsersMixin
 
 from .parser import VkontakteWallParser, VkontakteParseError
-
 log = logging.getLogger('vkontakte_wall')
 
 parsed = Signal(providing_args=['sender', 'instance', 'container'])
@@ -621,10 +621,13 @@ class Post(WallAbstractModel):
         timestamps = dict([(post['from_id'], post['date']) for post in resources if post['from_id'] > 0])
         ids_new = timestamps.keys()
         ids_current = self.repost_users.get_query_set(only_pk=True).using(MASTER_DATABASE).exclude(time_from=None)
+        ids_current_left = self.repost_users.get_query_set_through().using(MASTER_DATABASE).exclude(time_to=None) \
+            .values_list('user_id', flat=True)
         ids_add = set(ids_new).difference(set(ids_current))
         ids_remove = set(ids_current).difference(set(ids_new))
-
-        m2m_model = self.repost_users.through
+        # some of them may be already left for some reason or API error
+        ids_unleft = set(ids_add).intersection(set(ids_current_left))
+        ids_add = ids_add.difference(ids_unleft)
 
         # fetch new users
         User.remote.fetch(ids=ids_add, only_expired=True)
@@ -632,16 +635,20 @@ class Post(WallAbstractModel):
         # remove old reposts without time_from
         self.repost_users.get_query_set_through().filter(time_from=None).delete()
 
+        # try to find left users, that present in ids_add and make them unleft
+        self.repost_users.get_query_set_through().exclude(time_to=None).filter(
+            user_id__in=ids_unleft).update(time_to=None)
+
         # add new reposts
-        get_repost_date = lambda id: datetime.fromtimestamp(
-            timestamps[id]) if id in timestamps else self.date
+        get_repost_date = lambda id: datetime.utcfromtimestamp(
+            timestamps[id]).replace(tzinfo=timezone.utc) if id in timestamps else self.date
+
+        m2m_model = self.repost_users.through
         m2m_model.objects.bulk_create(
             [m2m_model(**{'user_id': id, 'post_id': self.pk, 'time_from': get_repost_date(id)}) for id in ids_add])
 
-        # remove reposts.
-        # Commented becouse of .using(MASTER_DATABASE).exclude(time_from=None) filtering for ids_current ???
-        m2m_model.objects.filter(post_id=self.pk, user_id__in=ids_remove).update(time_to=datetime.now())
-        return
+        # remove reposts
+        self.repost_users.get_query_set_through().filter(user_id__in=ids_remove).update(time_to=timezone.now())
 
     # не рекомендуется указывать default_count из-за бага паджинации репостов: https://vk.com/wall-51742963_6860
     @fetch_all(max_extra_calls=3)
@@ -666,9 +673,9 @@ class Post(WallAbstractModel):
         # положительное число, по умолчанию 20, максимальное значение 100
         kwargs['count'] = int(count)
 
-        log.debug('Fetching repost users ids of post %s, offset %d' % (self.remote_id, offset))
-
         response = api_call('wall.getReposts', **kwargs)
+        log.debug('Fetching reposts for post %s: %d returned, offset %d, count %d' %
+                  (self.remote_id, len(response['items']), offset, count))
         return response['items']
 
     @transaction.commit_on_success
