@@ -11,9 +11,9 @@ except ImportError:
 class WallOwnerListFilter(GenericRelationListFilter):
     title = u'Владелец стены'
 
-    ct_field_name = 'wall_owner_content_type'
-    id_field_name = 'wall_owner_id'
-    field_name = 'wall_owner'
+    ct_field_name = 'owner_content_type'
+    id_field_name = 'owner_id'
+    field_name = 'owner'
 
 
 class PostListFilter(admin.SimpleListFilter):
@@ -23,9 +23,9 @@ class PostListFilter(admin.SimpleListFilter):
     field_name = 'post'
 
     separator = '-'
-    ct_field_name = 'wall_owner_content_type'
-    id_field_name = 'wall_owner_id'
-    parent_parameter_name = 'wall_owner'
+    ct_field_name = 'owner_content_type'
+    id_field_name = 'owner_id'
+    parent_parameter_name = 'owner'
 
     def lookups(self, request, model_admin):
         parent_value = request.REQUEST.get(self.parent_parameter_name)
@@ -44,25 +44,24 @@ class CommentInline(admin.TabularInline):
     model = Comment
     extra = 0
     can_delete = False
-    fields = ('author', 'text', 'date', 'likes')
+    fields = ('author', 'text', 'date', 'likes_count')
     readonly_fields = fields
 
 
 class PostAdmin(VkontakteModelAdmin):
-    list_display = ('wall_owner', 'text', 'author', 'vk_link',
-                    'date', 'comments', 'likes', 'reposts')
+    list_display = ('owner', 'text', 'author', 'vk_link', 'date', 'comments_count', 'likes_count', 'reposts_count')
     list_display_links = ('text',)
     list_filter = (WallOwnerListFilter,)
     search_fields = ('text', 'copy_text', 'remote_id')
-    exclude = ('like_users', 'repost_users',)
+    exclude = ('likes_users', 'reposts_users',)
     inlines = [CommentInline]
 
 
 class CommentAdmin(VkontakteModelAdmin):
-    list_display = ('author', 'text', 'post', 'vk_link', 'date', 'likes')
+    list_display = ('author', 'text', 'object', 'vk_link', 'date', 'likes_count')
     search_fields = ('text', 'remote_id')
     list_filter = (WallOwnerListFilter, PostListFilter,)
 
 
 admin.site.register(Post, PostAdmin)
-admin.site.register(Comment, CommentAdmin)
+#admin.site.register(Comment, CommentAdmin)

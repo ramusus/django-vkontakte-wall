@@ -15,7 +15,7 @@ setup(
     zip_safe=False,  # because we're including media that Django needs
     install_requires=[
         'django-m2m-history',
-        'django-vkontakte-api>=0.7.0',
+        'django-vkontakte-api>=0.7.4',
         'django-vkontakte-users>=0.5.5',
         'django-vkontakte-groups>=0.3.8',
     ],
