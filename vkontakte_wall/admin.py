@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
-from models import Post, Comment
 from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
+from vkontakte_comments.models import Comment
+
+from .models import Post
+
 try:
     from django.template.defaultfilters import truncatewords
 except ImportError:

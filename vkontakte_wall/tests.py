@@ -6,12 +6,11 @@ from django.test import TestCase
 from django.utils import timezone
 import mock
 import simplejson as json
-from vkontakte_comments.factories import CommentFactory
+from vkontakte_comments.factories import CommentFactory, Comment
 from vkontakte_users.factories import User
 from vkontakte_users.tests import user_fetch_mock
 
-from .factories import PostFactory, UserFactory, GroupFactory
-from .models import Post, Comment
+from .factories import PostFactory, UserFactory, GroupFactory, Post
 
 USER_ID = 5223304
 POST_ID = '5223304_130'

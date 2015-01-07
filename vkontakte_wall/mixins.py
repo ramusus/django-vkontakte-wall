@@ -21,6 +21,9 @@ log = logging.getLogger('vkontakte_wall')
 
 class LikableModelMixin(LikableModelMixinBase):
 
+    class Meta:
+        abstract = True
+
     @transaction.commit_on_success
     def fetch_likes(self, source='api', *args, **kwargs):
         if source == 'api':
