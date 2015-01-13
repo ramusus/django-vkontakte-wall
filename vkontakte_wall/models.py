@@ -30,6 +30,7 @@ parsed = Signal(providing_args=['sender', 'instance', 'container'])
 class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMixin):
 
     response_instances_fieldname = 'wall'
+    timeline_force_ordering = True
 
     def fetch(self, ids=None, *args, **kwargs):
         '''
