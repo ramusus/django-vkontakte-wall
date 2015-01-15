@@ -531,6 +531,8 @@ class VkontakteWallTest(TestCase):
         self.assertEqual(instance.comments_count, 4)
         self.assertEqual(instance.text, 'qwerty')
         self.assertIsInstance(instance.date, datetime)
+        self.assertIsInstance(instance.raw_json, dict)
+        self.assertEqual(instance.raw_json['comments'], {"can_post": 0, "count": 4})
 
     def test_parse_comment(self):
 

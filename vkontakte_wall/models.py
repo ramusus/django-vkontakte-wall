@@ -13,7 +13,7 @@ from django.utils.encoding import python_2_unicode_compatible
 from m2m_history.fields import ManyToManyHistoryField
 from vkontakte_api import fields
 from vkontakte_api.decorators import fetch_all
-from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, AuthorableModelMixin
+from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, AuthorableModelMixin, RawModelMixin
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteIDStrModel, VkontakteCRUDModel, VkontakteCRUDManager
 from vkontakte_comments.mixins import CommentableModelMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -129,7 +129,7 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
 
 
 @python_2_unicode_compatible
-class Post(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, RepostableModelMixin, CommentableModelMixin, VkontakteIDStrModel, VkontakteCRUDModel):
+class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, RepostableModelMixin, CommentableModelMixin, VkontakteIDStrModel, VkontakteCRUDModel):
 
     slug_prefix = 'wall'
     fields_required_for_update = ['owner_id']
@@ -139,7 +139,6 @@ class Post(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Reposta
 
     # only for posts/comments from parser
     raw_html = models.TextField()
-    raw_json = fields.JSONField(default={}, null=True)
 
     date = models.DateTimeField(u'Время сообщения', db_index=True)
     text = models.TextField(u'Текст записи')
@@ -274,8 +273,6 @@ class Post(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Reposta
         return None
 
     def parse(self, response):
-        self.raw_json = dict(response)
-
         response.pop('attachment', {})
         for attachment in response.pop('attachments', []):
             pass
