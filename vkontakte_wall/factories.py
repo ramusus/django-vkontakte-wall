@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import random
+
 from django.utils import timezone
 import factory
 from vkontakte_api.factories import DjangoModelNoCommitFactory
@@ -15,6 +17,11 @@ class PostFactory(DjangoModelNoCommitFactory):
     owner = factory.SubFactory(UserFactory)
     author = factory.SubFactory(UserFactory)
     remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.owner.remote_id, n))
+
+    likes_count = factory.LazyAttribute(lambda o: random.randrange(100))
+    reposts_count = factory.LazyAttribute(lambda o: random.randrange(100))
+    comments_count = factory.LazyAttribute(lambda o: random.randrange(100))
+    actions_count = factory.LazyAttribute(lambda o: random.randrange(100))
 
     class Meta:
         model = Post
