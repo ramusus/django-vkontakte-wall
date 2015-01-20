@@ -273,13 +273,6 @@ class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableMode
         return None
 
     def parse(self, response):
-        response.pop('attachment', {})
-        for attachment in response.pop('attachments', []):
-            pass
-#             if attachment['type'] == 'poll':
-#              это можно делать только после сохранения поста, так что тольо через сигналы
-#                self.fetch_poll(attachment['poll']['poll_id'])
-
         # TODO: this block broke tests with error
         # IntegrityError: new row for relation "vkontakte_wall_post" violates check constraint "vkontakte_wall_post_copy_owner_id_check"
 #         if response.get('copy_owner_id'):
@@ -293,7 +286,7 @@ class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableMode
 
         super(Post, self).parse(response)
 
-        self.remote_id = '%s%s_%s' % (('-' if self.on_group_wall else ''), self.owner.remote_id, self.remote_id)
+        self.remote_id = '%s_%s' % (self.owner_remote_id, self.remote_id)
 
     def fetch_statistic(self, *args, **kwargs):
         if 'vkontakte_wall_statistic' not in settings.INSTALLED_APPS:
