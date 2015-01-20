@@ -64,13 +64,11 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
         if before and before < after:
             raise ValueError("Attribute `before` should be later, than attribute `after`")
 
-        kwargs['owner_id'] = owner.remote_id
+        kwargs['owner_id'] = self.model.get_owner_remote_id(owner)
         kwargs['filter'] = filter
         kwargs['extended'] = int(extended)
         kwargs['offset'] = int(offset)
-        kwargs.update({'count': count})
-        if isinstance(owner, Group):
-            kwargs['owner_id'] *= -1
+        kwargs['count'] = count
         # special parameters
         kwargs['after'] = after
         kwargs['before'] = before
