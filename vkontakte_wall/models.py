@@ -5,15 +5,12 @@ import re
 from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
-from django.db import models, transaction
+from django.core.exceptions import ImproperlyConfigured
+from django.db import models
 from django.dispatch import Signal
-from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
-from m2m_history.fields import ManyToManyHistoryField
-from vkontakte_api import fields
-from vkontakte_api.decorators import fetch_all
-from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, AuthorableModelMixin, RawModelMixin
+from vkontakte_api.decorators import fetch_all, atomic
+from vkontakte_api.mixins import OwnerableModelMixin, AuthorableModelMixin, RawModelMixin
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteIDStrModel, VkontakteCRUDModel, VkontakteCRUDManager
 from vkontakte_comments.mixins import CommentableModelMixin
 from vkontakte_groups.models import Group, ParseGroupsMixin
@@ -52,7 +49,7 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
             return super(WallRemoteManager, self).parse_response_dict(resource, extra_fields)
 
     # commented `default_count` becouse `before` argument works wrong with it
-    @transaction.commit_on_success
+    @atomic
     @fetch_all  # (default_count=100)
     def fetch_wall(self, owner, offset=0, count=100, filter='all', extended=False, before=None, after=None, **kwargs):
         if filter not in ['owner', 'others', 'all']:
@@ -77,7 +74,7 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
 
         return self.fetch(**kwargs)
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
         '''
         Old method via parser

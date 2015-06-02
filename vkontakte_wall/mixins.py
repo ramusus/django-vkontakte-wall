@@ -3,13 +3,11 @@ from datetime import datetime
 import logging
 import re
 
-from django.contrib.contenttypes import generic
-from django.contrib.contenttypes.models import ContentType
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from m2m_history.fields import ManyToManyHistoryField
 from vkontakte_api.api import api_call
-from vkontakte_api.decorators import fetch_all
+from vkontakte_api.decorators import fetch_all, atomic
 from vkontakte_api.mixins import LikableModelMixin as LikableModelMixinBase
 from vkontakte_api.models import MASTER_DATABASE
 from vkontakte_users.models import User
@@ -24,14 +22,14 @@ class LikableModelMixin(LikableModelMixinBase):
     class Meta:
         abstract = True
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_likes(self, source='api', *args, **kwargs):
         if source == 'api':
             return super(LikableModelMixin, self).fetch_likes(*args, **kwargs)
         else:
             return self.fetch_likes_parser(*args, **kwargs)
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_likes_parser(self, offset=0):
         '''
         Update and save fields:
@@ -129,7 +127,7 @@ class RepostableModelMixin(models.Model):
 
         return self.reposts_users.all()
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_instance_reposts(self, *args, **kwargs):
         resources = self.fetch_reposts_items(*args, **kwargs)
         if not resources:
@@ -200,7 +198,7 @@ class RepostableModelMixin(models.Model):
                   (self.remote_id, len(response['items']), offset, count))
         return response['items']
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_reposts_parser(self, offset=0):
         '''
         OLD method via parser, may works incorrect

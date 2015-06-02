@@ -21,7 +21,7 @@ class PostFactory(DjangoModelNoCommitFactory):
     likes_count = factory.LazyAttribute(lambda o: random.randrange(100))
     reposts_count = factory.LazyAttribute(lambda o: random.randrange(100))
     comments_count = factory.LazyAttribute(lambda o: random.randrange(100))
-    actions_count = factory.LazyAttribute(lambda o: random.randrange(100))
+    # actions_count = factory.LazyAttribute(lambda o: random.randrange(100))
 
     class Meta:
         model = Post
