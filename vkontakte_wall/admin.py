@@ -2,6 +2,10 @@
 from django.contrib import admin
 from vkontakte_api.admin import VkontakteModelAdmin, GenericRelationListFilter
 from vkontakte_comments.models import Comment
+try: # Deprecated since version 1.7. Support for importing from this old location will be removed in Django 1.9.
+    from django.contrib.contenttypes.generic import GenericTabularInline
+except ImportError:
+    from django.contrib.contenttypes.admin import GenericTabularInline
 
 from .models import Post
 
@@ -43,8 +47,10 @@ class PostListFilter(admin.SimpleListFilter):
             return queryset.filter(**{self.ct_field_name: ct_value, self.id_field_name: id_value, self.field_name: self.value()})
 
 
-class CommentInline(admin.TabularInline):
+class CommentInline(GenericTabularInline):
     model = Comment
+    ct_field = 'object_content_type'
+    ct_fk_field = 'object_id'
     extra = 0
     can_delete = False
     fields = ('author', 'text', 'date', 'likes_count')
