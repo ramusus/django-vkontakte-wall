@@ -291,6 +291,14 @@ class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableMode
         from vkontakte_wall_statistic.models import PostStatistic
         return PostStatistic.remote.fetch(post=self, *args, **kwargs)
 
+    def fetch_reach(self, *args, **kwargs):
+        if 'vkontakte_wall_statistic' not in settings.INSTALLED_APPS:
+            raise ImproperlyConfigured(
+                "Application 'vkontakte_wall_statistic' not in INSTALLED_APPS")
+
+        from vkontakte_wall_statistic.models import PostReach
+        return PostReach.remote.fetch(post=self, *args, **kwargs)
+
 
 Group.add_to_class('wall_posts', generic.GenericRelation(
     Post, content_type_field='owner_content_type', object_id_field='owner_id', related_name='group_wall', verbose_name=u'Сообщения на стене'))
