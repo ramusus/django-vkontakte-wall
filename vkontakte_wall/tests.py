@@ -298,7 +298,6 @@ class VkontakteWallTest(TestCase):
         post = PostFactory(remote_id=GROUP_POST_ID, owner=group)
 
         self.assertEqual(post.likes_users.count(), 0)
-        self.assertEqual(post.likes_count, None)
 
         post.fetch_likes(source='parser')
         self.assertGreater(post.likes_count, 120)
@@ -311,7 +310,6 @@ class VkontakteWallTest(TestCase):
         post = PostFactory(remote_id=GROUP_POST_ID, owner=group)
 
         self.assertEqual(post.likes_users.count(), 0)
-        self.assertEqual(post.likes_count, None)
 
         users_initial = User.objects.count()
         users = post.fetch_likes(all=True)
@@ -329,7 +327,6 @@ class VkontakteWallTest(TestCase):
         users_initial = User.objects.count()
 
         self.assertEqual(post.likes_users.count(), 0)
-        self.assertEqual(post.likes_count, None)
 
         users = post.fetch_likes(all=True)
 
@@ -346,7 +343,6 @@ class VkontakteWallTest(TestCase):
         users_initial = User.objects.count()
 
         self.assertEqual(post.reposts_users.count(), 0)
-        self.assertEqual(post.reposts_count, None)
 
         users = post.fetch_reposts(all=True)
 
