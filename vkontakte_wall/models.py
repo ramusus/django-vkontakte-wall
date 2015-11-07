@@ -301,11 +301,11 @@ class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableMode
 
 
 Group.add_to_class('wall_posts', generic.GenericRelation(
-    Post, content_type_field='owner_content_type', object_id_field='owner_id', related_name='group_wall', verbose_name=u'Сообщения на стене'))
+    Post, content_type_field='owner_content_type', object_id_field='owner_id', related_query_name='group_wall', verbose_name=u'Сообщения на стене'))
 User.add_to_class('wall_posts', generic.GenericRelation(
-    Post, content_type_field='owner_content_type', object_id_field='owner_id', related_name='user_wall', verbose_name=u'Сообщения на стене'))
+    Post, content_type_field='owner_content_type', object_id_field='owner_id', related_query_name='user_wall', verbose_name=u'Сообщения на стене'))
 
 Group.add_to_class('posts', generic.GenericRelation(
-    Post, content_type_field='author_content_type', object_id_field='author_id', related_name='group', verbose_name=u'Сообщения'))
+    Post, content_type_field='author_content_type', object_id_field='author_id', related_query_name='group', verbose_name=u'Сообщения'))
 User.add_to_class('posts', generic.GenericRelation(
-    Post, content_type_field='author_content_type', object_id_field='author_id', related_name='user', verbose_name=u'Сообщения'))
+    Post, content_type_field='author_content_type', object_id_field='author_id', related_query_name='user', verbose_name=u'Сообщения'))
