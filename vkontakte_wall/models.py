@@ -211,7 +211,7 @@ class Post(RawModelMixin, OwnerableModelMixin, AuthorableModelMixin, LikableMode
         verbose_name_plural = u'Сообщения Вконтакте'
 
     def __str__(self):
-        return '%s: %s' % (unicode(self.owner), self.text)
+        return self.text
 
     def save(self, *args, **kwargs):
         # check strings for good encoding
