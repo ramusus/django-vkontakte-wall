@@ -30,9 +30,9 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
     timeline_force_ordering = True
 
     def fetch(self, ids=None, *args, **kwargs):
-        '''
+        """
         Retrieve and save object to local DB
-        '''
+        """
         if ids:
             kwargs['posts'] = ','.join(ids)
             kwargs['method'] = 'getById'
@@ -76,10 +76,10 @@ class WallRemoteManager(VkontakteTimelineManager, ParseUsersMixin, ParseGroupsMi
 
     @atomic
     def fetch_group_wall_parser(self, group, offset=0, count=None, own=False, after=None):
-        '''
+        """
         Old method via parser
         TODO: `before` parameter not implemented
-        '''
+        """
         post_data = {
             'al': 1,
             'offset': offset,

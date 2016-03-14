@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, tzinfo
+from datetime import datetime
 import time
 
-from django.test import TestCase
 from django.utils import timezone
 import mock
 import simplejson as json
 from vkontakte_comments.factories import CommentFactory, Comment
 from vkontakte_users.factories import User
 from vkontakte_users.tests import user_fetch_mock
+from vkontakte_api.tests import VkontakteApiTestCase
 
 from .factories import PostFactory, UserFactory, GroupFactory, Post
 
@@ -32,7 +32,7 @@ GROUP2_ID = 10362317
 GROUP2_POST_WITH_MANY_LIKES_ID = '-10362317_236186'
 
 
-class VkontakteWallTest(TestCase):
+class VkontakteWallTest(VkontakteApiTestCase):
 
     def setUp(self):
         self.objects_to_delete = []
@@ -547,7 +547,9 @@ class VkontakteWallTest(TestCase):
 
         self.assertEqual(instance.remote_id, '%s_2505' % USER_ID)
         self.assertEqual(
-            instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать аудитории опрашиваемых, например только женский или мужской пол могут участвовать (то бишь голосовать в опросе).')
+            instance.text, u'Добрый день , кароче такая идея когда опросы создаешь вместо статуса - можно выбрать '
+                           u'аудитории опрашиваемых, например только женский или мужской пол могут участвовать '
+                           u'(то бишь голосовать в опросе).')
         self.assertEqual(instance.author, author)
         self.assertIsInstance(instance.date, datetime)
 
