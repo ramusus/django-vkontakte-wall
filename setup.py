@@ -18,7 +18,9 @@ setup(
         'django-vkontakte-api>=0.7.6',
         'django-vkontakte-users>=0.5.5',
         'django-vkontakte-groups>=0.3.8',
+        'django-vkontakte-comments>=0.8.2',
     ],
+    dependency_links=['https://github.com/ramusus/django-vkontakte-comments/tarball/master#egg=django-vkontakte-comments'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
